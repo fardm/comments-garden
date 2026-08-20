@@ -109,7 +109,7 @@ function pushSecret(token) {
 // ── Actions ───────────────────────────────────────────────────────────────────
 
 async function setupTelegram() {
-  console.log('✈️  Telegram Notification Setup\n');
+  console.log('🔔  Telegram Notification Setup\n');
 
   const token = await prompt('Enter your Telegram Bot Token: ');
   if (!token || !token.includes(':')) {
@@ -279,7 +279,7 @@ async function main() {
   if (args.includes('--chat-id')) { await changeChatId(); return; }
 
   // Interactive menu — select one operation, run it, then exit
-  console.log('✈️  Telegram Notification Configuration\n');
+  console.log('🔔  Telegram Notification Configuration\n');
   console.log('  1. Setup / Reconfigure');
   console.log('  2. Change Bot Token');
   console.log('  3. Change Chat ID');

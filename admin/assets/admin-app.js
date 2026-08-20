@@ -807,8 +807,8 @@ VIEWS['analytics'] = {
             fetch(`${API_URL}?action=analytics&_=${Date.now()}`, { credentials: 'include', cache: 'no-store' }),
             fetch(`${API_URL}?action=post_reactions_summary&_=${Date.now()}`, { credentials: 'include', cache: 'no-store' })
         ]);
-        if (analyticsResp.ok) loadAnalytics(await analyticsResp.json());
-        if (reactionsResp.ok) renderReactionBalance(await reactionsResp.json());
+        if (analyticsResp.ok) { try { loadAnalytics(await analyticsResp.json()); } catch (e) { console.error('loadAnalytics failed:', e); } }
+        if (reactionsResp.ok) { try { renderReactionBalance(await reactionsResp.json()); } catch (e) { console.error('renderReactionBalance failed:', e); } }
 
         function loadAnalytics(data) {
             analyticsData = data;
@@ -818,8 +818,8 @@ VIEWS['analytics'] = {
             document.getElementById('stat-approved').textContent   = fmt(st.approved || 0);
             document.getElementById('stat-pending').textContent    = fmt(st.pending  || 0);
             document.getElementById('stat-spam').textContent       = fmt(st.spam     || 0);
-            renderTimeline();
-            renderTopPosts(data.top_posts  || []);
+            try { renderTimeline(); } catch (e) { console.error('renderTimeline failed:', e); }
+            try { renderTopPosts(data.top_posts || []); } catch (e) { console.error('renderTopPosts failed:', e); }
         }
 
         function setGranularity(g) {
@@ -861,9 +861,24 @@ VIEWS['analytics'] = {
         }        function renderTopPosts(posts) {
             const el=document.getElementById('top-posts-chart');if(!el)return;
             if(!posts.length){el.innerHTML='<div class="chart-empty">No posts yet</div>';return;}
-            const W=700,ROW=30,URL_W=190,BAR_GAP=8,COUNT_W=32,BAR_W=W-URL_W-BAR_GAP-COUNT_W,H=posts.length*ROW+4;
+            const W=700,ROW=24,URL_X=0,URL_W=210,BAR_GAP=10,COUNT_GAP=6,BAR_W=W-URL_W-BAR_GAP-COUNT_GAP-36,H=posts.length*ROW;
             const maxVal=Math.max(...posts.map(p=>p.total),1);let rows='';
-            posts.forEach((p,i)=>{const y=i*ROW,tw=(p.total/maxVal)*BAR_W,aw=p.total>0?(p.approved/p.total)*tw:0,pw=p.total>0?(p.pending/p.total)*tw:0,sw=p.total>0?(p.spam/p.total)*tw:0,ow=Math.max(0,tw-aw-pw-sw);const barH=14,by=y+(ROW-barH)/2,bx0=URL_W+BAR_GAP;let bx=bx0;const addSeg=(w,color)=>{if(w<.5)return;rows+=`<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${w.toFixed(1)}" height="${barH}" fill="${color}" rx="1.5"/>`;bx+=w;};addSeg(aw,'#28a745');addSeg(pw,'#ffc107');addSeg(sw,'#dc3545');addSeg(ow,'#adb5bd');rows+=`<text x="${URL_W-4}" y="${(y+ROW/2+4).toFixed(1)}" text-anchor="end" font-size="10.5" fill="#555">${escapeHtml(truncUrl(p.page_url,30))}</text>`;rows+=`<text x="${bx0+tw+5}" y="${(y+ROW/2+4).toFixed(1)}" font-size="10.5" fill="#888">${p.total}</text>`;if(i<posts.length-1)rows+=`<line x1="0" x2="${W}" y1="${y+ROW}" y2="${y+ROW}" stroke="#f5f5f5"/>`;rows+=`<rect x="0" y="${y}" width="${W}" height="${ROW}" fill="rgba(0,0,0,0)" pointer-events="all" class="post-ov" data-i="${i}"/>`;});
+            posts.forEach((p,i)=>{
+                const y=i*ROW;
+                const tw=(p.total/maxVal)*BAR_W;
+                const aw=p.total>0?(p.approved/p.total)*tw:0;
+                const pw=p.total>0?(p.pending/p.total)*tw:0;
+                const sw=p.total>0?(p.spam/p.total)*tw:0;
+                const ow=Math.max(0,tw-aw-pw-sw);
+                const barH=10,by=y+(ROW-barH)/2;
+                let bx=URL_W+BAR_GAP;
+                const addSeg=(w,color)=>{if(w<.5)return;rows+=`<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${w.toFixed(1)}" height="${barH}" fill="${color}" rx="1"/>`;bx+=w;};
+                addSeg(aw,'#28a745');addSeg(pw,'#ffc107');addSeg(sw,'#dc3545');addSeg(ow,'#adb5bd');
+                rows+=`<text x="${URL_X}" y="${(y+ROW/2+3.5).toFixed(1)}" font-size="9.5" fill="#555">${escapeHtml(truncUrl(p.page_url,32))}</text>`;
+                rows+=`<text x="${URL_W+BAR_GAP+tw+COUNT_GAP}" y="${(y+ROW/2+3.5).toFixed(1)}" font-size="9" fill="#999">${p.total}</text>`;
+                if(i<posts.length-1)rows+=`<line x1="0" x2="${W}" y1="${y+ROW}" y2="${y+ROW}" stroke="#f0f0f0" stroke-width="0.5"/>`;
+                rows+=`<rect x="0" y="${y}" width="${W}" height="${ROW}" fill="rgba(0,0,0,0)" pointer-events="all" class="post-ov" data-i="${i}"/>`;
+            });
             el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">${rows}</svg>`;
             const ttEl=document.getElementById('chart-tooltip');
             el.querySelectorAll('.post-ov').forEach(r=>{r.addEventListener('mouseenter',e=>{const p=posts[+r.dataset.i];const pct=p.total>0?Math.round(p.spam/p.total*100):0;showTip(ttEl,e,`<strong>${escapeHtml(p.page_url)}</strong><br>Total: <strong>${p.total}</strong><br>✅ ${p.approved}&ensp;⏳ ${p.pending}&ensp;🚫 ${p.spam} (${pct}%)`);});r.addEventListener('mousemove',e=>moveTip(ttEl,e));r.addEventListener('mouseleave',()=>hideTip(ttEl));});
@@ -896,60 +911,51 @@ VIEWS['analytics'] = {
                 el.innerHTML = '<div class="chart-empty">No reactions yet</div>';
                 return;
             }
-            const posPct = (pos / total * 100);
-            const negPct = (neg / total * 100);
-            const neuPct = (neu / total * 100);
-            // Determine dominant sentiment
-            let summary;
-            if (posPct >= negPct && posPct >= neuPct) {
-                summary = `<span style="color:#28a745;font-weight:700;">${posPct.toFixed(1)}% Positive</span>`;
-            } else if (negPct >= posPct && negPct >= neuPct) {
-                summary = `<span style="color:#dc3545;font-weight:700;">${negPct.toFixed(1)}% Negative</span>`;
-            } else {
-                summary = `<span style="color:#6c757d;font-weight:700;">${neuPct.toFixed(1)}% Neutral</span>`;
-            }
-            // SVG diverging bar
-            const W = 700, H = 120, barH = 32, cy = 40;
-            const midX = W / 2;
-            const maxSide = Math.max(neg, pos, 1);
-            const scale = (W / 2 - 60) / maxSide;
-            const negW = neg * scale;
-            const posW = pos * scale;
-            const neuW = Math.max(neu * scale * 0.4, 2); // neutral is narrow, centered
-            // Build segments from center outward
-            // Negative bar (extends left from center)
-            const negRect = neg > 0
-                ? `<rect x="${(midX - negW).toFixed(1)}" y="${cy}" width="${negW.toFixed(1)}" height="${barH}" fill="#dc3545" rx="3" opacity="0.85"/>`
-                : '';
-            // Positive bar (extends right from center)
-            const posRect = pos > 0
-                ? `<rect x="${midX.toFixed(1)}" y="${cy}" width="${posW.toFixed(1)}" height="${barH}" fill="#28a745" rx="3" opacity="0.85"/>`
-                : '';
-            // Neutral bar (centered)
-            const neuRect = neu > 0
-                ? `<rect x="${(midX - neuW / 2).toFixed(1)}" y="${cy}" width="${neuW.toFixed(1)}" height="${barH}" fill="#6c757d" rx="3" opacity="0.85"/>`
-                : '';
-            // Center line
-            const centerLine = `<line x1="${midX}" x2="${midX}" y1="${cy - 6}" y2="${cy + barH + 6}" stroke="#ccc" stroke-width="1" stroke-dasharray="3,3"/>`;
-            // Labels
-            const labelY = cy + barH + 20;
+            const posPct = pos / total * 100;
+            const negPct = neg / total * 100;
+            const neuPct = neu / total * 100;
+
+            // --- SVG: one continuous stacked bar ---
+            const W = 660, H = 72, barH = 22, barY = 30, pad = 8;
+            const barW = W - pad * 2;
+            // Segment widths (proportional, always adjacent → one connected bar)
+            const negW = total > 0 ? (neg / total) * barW : 0;
+            const neuW = total > 0 ? (neu / total) * barW : 0;
+            const posW = total > 0 ? (pos / total) * barW : 0;
+            // Build the bar: negative | neutral | positive, always drawn in order
+            // Use rx on the first and last visible segment for rounded ends
+            let bar = '';
+            let x = pad;
+            const segments = [
+                { w: negW, color: '#dc3545' },
+                { w: neuW, color: '#6c757d' },
+                { w: posW, color: '#28a745' },
+            ].filter(s => s.w > 0);
+            segments.forEach((s, i) => {
+                const isFirst = i === 0;
+                const isLast = i === segments.length - 1;
+                // Round the outer corners of end segments, flat joins in the middle
+                const r = (isFirst || isLast) ? 4 : 0;
+                bar += `<rect x="${x.toFixed(1)}" y="${barY}" width="${s.w.toFixed(1)}" height="${barH}" fill="${s.color}" rx="${r}"/>`;
+                x += s.w;
+            });
+
+            // --- Labels anchored to container edges (independent of bar widths) ---
+            const labelY = barY - 10;
             const labels = `
-                <text x="${(midX - negW / 2).toFixed(1)}" y="${labelY}" text-anchor="middle" font-size="11" fill="#dc3545" font-weight="600">${neg > 0 ? fmt(neg) + ' (' + negPct.toFixed(1) + '%)' : ''}</text>
-                <text x="${midX}" y="${labelY}" text-anchor="middle" font-size="11" fill="#6c757d" font-weight="600">${neu > 0 ? fmt(neu) + ' (' + neuPct.toFixed(1) + '%)' : ''}</text>
-                <text x="${(midX + posW / 2).toFixed(1)}" y="${labelY}" text-anchor="middle" font-size="11" fill="#28a745" font-weight="600">${pos > 0 ? fmt(pos) + ' (' + posPct.toFixed(1) + '%)' : ''}</text>
+                <text x="${pad}" y="${labelY}" text-anchor="start" font-size="9.5" fill="#dc3545" font-weight="600">Negative ${negPct.toFixed(1)}%</text>
+                <text x="${W / 2}" y="${labelY}" text-anchor="middle" font-size="9.5" fill="#6c757d" font-weight="600">Neutral ${neuPct.toFixed(1)}%</text>
+                <text x="${W - pad}" y="${labelY}" text-anchor="end" font-size="9.5" fill="#28a745" font-weight="600">Positive ${posPct.toFixed(1)}%</text>
             `;
-            // Category labels
-            const catY = cy - 10;
-            const catLabels = `
-                <text x="${(midX - negW / 2).toFixed(1)}" y="${catY}" text-anchor="middle" font-size="10" fill="#999">Negative</text>
-                <text x="${midX}" y="${catY}" text-anchor="middle" font-size="10" fill="#999">Neutral</text>
-                <text x="${(midX + posW / 2).toFixed(1)}" y="${catY}" text-anchor="middle" font-size="10" fill="#999">Positive</text>
-            `;
-            const summaryY = cy + barH + 42;
+
             el.innerHTML = `
-                <div style="text-align:center;margin-bottom:0.75rem;font-size:1rem;">${summary}</div>
-                <svg viewBox="0 0 ${W} ${H + 20}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;overflow:visible">${centerLine}${negRect}${neuRect}${posRect}${catLabels}${labels}</svg>
-                <div style="text-align:center;margin-top:0.25rem;font-size:0.8rem;color:#999;">${fmt(total)} total reactions</div>
+                <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;overflow:visible">${labels}${bar}</svg>
+                <div style="display:flex;justify-content:space-between;padding:0 2px;margin-top:0.15rem;">
+                    <span style="font-size:0.78rem;color:#dc3545;">Negative: ${fmt(neg)}</span>
+                    <span style="font-size:0.78rem;color:#6c757d;">Neutral: ${fmt(neu)}</span>
+                    <span style="font-size:0.78rem;color:#28a745;">Positive: ${fmt(pos)}</span>
+                    <span style="font-size:0.78rem;color:#999;">Total: ${fmt(total)}</span>
+                </div>
             `;
         }
 
@@ -1690,7 +1696,7 @@ VIEWS['settings-notifications'] = {
         <div class="container">
             <h2 style="margin-bottom: 1.5rem;">Notification</h2>
             <div class="util-card">
-                <div class="util-card-header"><span class="icon">✈️</span><h2>Telegram Notifications</h2></div>
+                <div class="util-card-header"><span class="icon">🔔</span><h2>Telegram Notifications</h2></div>
                 <div class="util-card-body">
                     <p>Get notified in Telegram when new comments are submitted. Configure the bot token and chat ID using <code style="background:var(--gray,#f0f0f0);padding:.15rem .4rem;border-radius:3px;font-size:.88rem;">npm run telegram</code>.</p>
                     <div id="telegram-message"></div>
