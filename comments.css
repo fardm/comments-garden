@@ -1,0 +1,673 @@
+.comments-system {
+    --cs-message-success-bg: #d4edda;
+    --cs-message-success-text: #155724;
+    --cs-message-error-bg: #f8d7da;
+    --cs-message-info-bg: #d1ecf1;
+    --cs-message-info-text: #0c5460;
+    --cs-pending-bg: #fffbf0;
+    --cs-pending-badge-bg: #ffc107;
+    --cs-pending-badge-text: #333333;
+
+    --btn-brightness: brightness(94%);
+    /* برای من توی کاستوم تعریف شده */
+    /* --on-background: #f9e8d6; */
+    /* --secondary-shadow: #ee5a2512; */ 
+
+}
+
+ [saved-theme="dark"] .comments-system {
+    --cs-message-success-bg: rgba(21, 87, 36, 0.4);
+    --cs-message-success-text: #e2e3e5;
+    --cs-message-error-bg: rgba(114, 28, 36, 0.4);
+    --cs-message-info-bg: rgba(12, 84, 96, 0.4);
+    --cs-message-info-text: #e2e3e5;
+    --cs-pending-bg: rgba(255, 193, 7, 0.15);
+    --cs-pending-badge-bg: #ffc107;
+    --cs-pending-badge-text: #000000;
+
+    --btn-brightness: brightness(110%);
+    /* --on-background: #1f1f22; */
+    /* --secondary-shadow: #ee5a2512; */
+
+}
+
+.comments-system {
+    margin: 2rem auto;
+    color: var(--btn-brightness)
+}
+
+/* Post Reactions Section */
+.comments-system .post-reactions-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.comments-system .post-reactions-label {
+    color: var(--darkgray);
+    text-align: center;
+}
+
+.comments-system .form-group {
+    margin-bottom: 1rem;
+    background: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+.comments-system .form-input,
+.comments-system .form-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--lightgray);
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: inherit;
+    box-sizing: border-box;
+    background: var(--on-background);
+    filter: var(--btn-brightness);
+    color: var(--dark);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    appearance: none;
+}
+
+.comments-system .form-input:focus,
+.comments-system .form-textarea:focus {
+    outline: none;
+    border-color: var(--secondary);
+    box-shadow: 0 0 0 3px var(--secondary-shadow);
+}
+
+.comments-system .form-textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.comments-system .checkbox-label {
+    display: flex;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--darkgray);
+    opacity: 0.9;
+    background: transparent !important;
+}
+
+.comments-system .checkbox-label input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: var(--secondary);
+    margin: 0;
+}
+
+.comments-system .form-actions {
+    display: flex;
+    gap: 0.75rem;
+    background: transparent !important;
+}
+
+/* Buttons - MAX Specificity & !important */
+#comments-container .comments-system button.btn-submit,
+#comments-container .comments-system button.btn-cancel,
+#comments-container .comments-system button.btn-reply {
+    display: inline-block;
+    padding: 0.6rem 1.25rem;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    text-align: center;
+    text-decoration: none;
+    line-height: 1.5;
+    appearance: none;
+    -webkit-appearance: none;
+    box-shadow: none;
+    text-shadow: none !important;
+    background-image: none !important;
+    /* Kill gradients */
+    filter: none !important;
+}
+
+/* Submit Button - The Fix */
+#comments-container .comments-system button.btn-submit {
+    background: var(--secondary) !important;
+    color: var(--light) !important;
+    border: none;
+    opacity: 1 !important;
+}
+
+#comments-container .comments-system button.btn-submit:hover {
+    filter: var(--btn-brightness) !important;
+}
+
+#comments-container .comments-system button.btn-submit:disabled {
+    opacity: 0.6 !important;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none !important;
+}
+
+#comments-container .comments-system button.btn-cancel {
+    background: var(--gray) !important;
+    color: var(--darkgray) !important;
+    border: none;
+}
+
+#comments-container .comments-system button.btn-cancel:hover {
+    filter: var(--btn-brightness) !important;
+}
+
+#comments-container .comments-system button.btn-reply {
+    background: var(--on-background) !important;
+    border: 1px solid var(--lightgray) !important;
+    color: var(--darkgray) !important;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.85rem;
+}
+
+#comments-container .comments-system button.btn-reply:hover {
+    filter: var(--btn-brightness) !important;
+}
+
+.comments-system .reactions-bar {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+#comments-container .comments-system .comment-reaction-badges,
+#comments-container .comments-system .post-reactions-badges {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+#comments-container .comments-system .reaction-picker-wrap.no-badges .comment-reaction-badges {
+    display: none;
+}
+
+#comments-container .comments-system .post-reactions-badges.no-badges {
+    display: none;
+}
+
+.comments-system .reaction-picker-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    /* Keep the add button visually aligned with badges */
+    gap: 0.35rem;
+}
+
+#comments-container .comments-system .btn-reaction-add {
+    background: transparent !important;
+    border: 1px solid var(--lightgray);
+    color: var(--gray);
+    padding: 0.5rem !important;
+    font-size: 1.1rem !important;
+    line-height: 1 !important;
+    border-radius: 999px !important;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s, border-color 0.15s !important;
+    display: flex;
+}
+
+#comments-container .comments-system .btn-reaction-add:hover {
+    filter: var(--btn-brightness)
+}
+
+#comments-container .comments-system .btn-reaction-add:active {
+    transform: scale(0.96);
+}
+
+.comments-system .cs-reaction-picker {
+    position: absolute;
+    z-index: 50;
+    top: calc(100% + 6px);
+    left: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.35rem;
+    background: var(--on-background);
+    border: 1px solid var(--lightgray);
+    border-radius: 12px;
+    box-shadow: var(--secondary-shadow);
+
+    min-width: 210px;
+
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+    pointer-events: none;
+    transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.comments-system .reaction-picker-wrap.open .cs-reaction-picker {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.comments-system .reaction-picker-emoji {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.comments-system .reaction-picker-emoji:hover {
+    background: var(--lightgray);
+    transform: translateY(-1px);
+}
+
+.comments-system .reaction-picker-emoji:active {
+    transform: translateY(0);
+}
+
+.comments-system .reaction-picker-emoji:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+#comments-container .comments-system button.btn-reaction {
+    background: var(--on-background);
+    border: 1px solid var(--lightgray);
+    color: var(--gray);
+    padding: 0.3rem 0.4rem;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: color 0.2s, border-color 0.2s, background 0.2s, transform 0.1s !important;
+    border-radius: 4px;
+}
+
+#comments-container .comments-system button.btn-reaction:hover {
+    filter: var(--btn-brightness);
+    cursor: pointer;
+}
+
+#comments-container .comments-system button.btn-reaction:active {
+    transform: scale(0.92);
+}
+
+#comments-container .comments-system button.btn-reaction:disabled {
+    opacity: 0.5 !important;
+    cursor: default;
+}
+
+
+#comments-container .comments-system button.btn-reaction-funny.voted {
+    color: var(--secondary) !important;
+    border-color: var(--secondary) !important;
+    filter: var(--btn-brightness);
+}
+
+#comments-container .comments-system button.btn-reaction.voted {
+    /* Fallback styling for new reaction types */
+    color: var(--secondary) !important;
+    border-color: var(--secondary) !important;
+    background: var(--secondary-shadow) !important;
+}
+
+
+
+.comments-system .reaction-emoji {
+    font-style: normal;
+    line-height: 1;
+    transition: filter 0.2s;
+}
+
+.comments-system .reaction-count {
+    font-size: 0.82rem;
+    min-width: 0.5ch;
+}
+
+/* Form Messages */
+.comments-system .form-message {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border-radius: 4px;
+}
+
+.comments-system .form-message.success {
+    background-color: var(--cs-message-success-bg);
+    color: var(--cs-message-success-text);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.comments-system .form-message.error {
+    background-color: var(--cs-message-error-bg);
+    color: var(--cs-message-error-text);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.comments-system .form-message.info {
+    background-color: var(--cs-message-info-bg);
+    color: var(--cs-message-info-text);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Comments List */
+.comments-list {
+    margin-top: 2rem;
+}
+
+.comments-system .comment {
+    background: var(--on-background);
+    border: 1px solid var(--lightgray);
+    border-radius: 6px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    transition: box-shadow 0.2s;
+}
+
+
+.comments-system .comment-pending {
+    opacity: 0.9;
+    background-color: var(--cs-pending-bg);
+}
+
+.comment.admin-comment {
+    border-inline-start: 3px solid var(--secondary);
+}
+
+.comments-system .comment-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+    border-bottom: solid 1px var(--lightgray);
+    padding-bottom: 10px;
+}
+
+.comments-system .comment-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    object-fit: cover;
+    border: 1px solid var(--lightgray);
+}
+
+.comments-system .comment-author-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.comments-system .comment-date {
+    font-size: 0.9rem;
+    font-weight: 400;
+}
+
+.comments-system .badge-pending {
+    background-color: var(--cs-pending-badge-bg);
+    color: var(--cs-pending-badge-text);
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.comments-system .comment-content {
+    margin-bottom: 0.75rem;
+    color: var(--darkgray);
+    line-height: 1.6;
+}
+
+.comments-system .comment-content code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.875em;
+    background: var(--cs-code-bg, rgba(0, 0, 0, 0.06));
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+}
+
+.comments-system .comment-content blockquote {
+    margin: 0.25rem 0;
+    padding: 0.1rem 0.75rem;
+    font-style: italic;
+}
+
+.comments-system .comment-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+    .comments-system .comment-content code {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+
+}
+
+.comments-system .comment-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.comments-system .comment-reply-form {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+.comments-system .comment-reply-form h4 {
+    margin-bottom: 1rem;
+}
+
+/* Messages */
+.comments-system .loading,
+.comments-system .no-comments,
+.comments-system .comments-closed,
+.comments-system .error {
+    text-align: center;
+    padding: 2rem;
+    color: var(--gray);
+    font-style: italic;
+}
+
+.comments-system .error {
+    color: var(--cs-message-error-text);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .comments-system {
+        margin: 1rem 0;
+    }
+
+    .comments-system .comment {
+        margin-left: 0 !important;
+        padding-left: 1rem;
+    }
+
+    .comments-system .comment-form {
+        padding: 1rem;
+    }
+
+    .comments-system .form-actions {
+        flex-direction: column;
+    }
+
+    .comments-system .btn-submit,
+    .comments-system .btn-cancel {
+        width: 100%;
+    }
+}
+
+
+/* custom */
+.befor-form-comment {
+    margin-bottom: 0
+}
+
+.post-reactions-section > .reactions-bar {
+    gap: 1rem;
+}
+
+.post-reactions-section > .reactions-bar > button.btn-reaction {
+    font-size: 1.5rem !important;
+    padding: 0.6rem 0.6rem !important;
+}
+
+#post-reactions-container {
+    border-bottom: solid 1px var(--lightgray);
+    margin-bottom: 2rem;
+}
+
+
+/* راهنمای فرمت‌دهی */
+.comment-form .form-group {
+    position: relative;
+}
+
+.textarea-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+.form-textarea {
+    width: 100%;
+    padding-top: 40px; 
+    padding-right: 40px; 
+    box-sizing: border-box;
+}
+
+.help-icon {
+    position: absolute;
+    top: 10px;
+    inset-inline-end: 10px;
+    width: 20px;
+    height: 20px;
+    padding: 0.1rem;
+    background-color: var(--lightgray);
+    color: var(--darkgray);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer; 
+    z-index: 10; 
+}
+
+.tooltip {
+    position: absolute;
+    top: 40px; 
+    left: 10px; 
+    background-color: var(--lightgray);
+    color: var(--darkgray);
+    padding: 10px;
+    border-radius: 5px;
+    white-space: nowrap; 
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 100;
+    min-width: 200px; 
+    text-align: right;
+    font-size: 0.8rem;
+}
+
+.tooltip p {
+    line-height: 0.9rem;
+}
+
+.help-icon:hover + .tooltip,
+.tooltip:hover {
+    visibility: visible;
+    opacity: 1;
+}
+
+
+
+
+/* =========================================
+   Recent Comments Widget Styles
+   ========================================= */
+.rc-widget-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-height: 450px;
+  overflow-y: auto; 
+  padding-inline-end: 5px; 
+}
+
+.rc-widget-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.rc-widget-list::-webkit-scrollbar-track {
+  background: transparent; 
+}
+
+.rc-widget-list::-webkit-scrollbar-thumb {
+  background-color: var(--gray, #ccc); 
+  border-radius: 10px;
+}
+
+
+.rc-widget-item {
+  background: var(--lightgray);
+  padding: 10px;
+  border-radius: 5px;
+  font-size: 0.9rem;
+}
+
+.rc-widget-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  font-size: 0.8rem;
+}
+
+.rc-widget-content {
+  color: var(--darkgray);
+  margin-bottom: 7px;
+  word-break: break-word;
+  border-bottom: solid 1px #7e7e7e47;
+  padding-bottom: 6px;
+}
+
+.rc-widget-meta {
+  font-size: 0.75rem;
+  color: var(--darkgray);
+}
+
+.rc-widget-link {
+  text-decoration: none;
+  color: var(--tertiary);
+}
+
+.rc-widget-loading,
+.rc-widget-empty {
+  font-size: 0.9rem;
+  color: var(--gray);
+}
+
+.rc-widget-error {
+  font-size: 0.9rem;
+  color: #e74c3c;
+}

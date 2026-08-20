@@ -1,0 +1,16 @@
+name = "comments-garden"
+main = "src/index.ts"
+compatibility_date = "2024-03-20"
+
+[[d1_databases]]
+binding = "DB"
+database_name = ""
+database_id = ""
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[vars]
+ALLOWED_ORIGINS = "*"
+:

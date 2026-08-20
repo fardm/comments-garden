@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recent Comments</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .error {
+            background: #fee;
+            color: #c00;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        .comment {
+            padding: 20px;
+            margin-bottom: 15px;
+            background: #fafafa;
+            border-left: 3px solid #3498db;
+            border-radius: 4px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .comment:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .comment-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .comment-author {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-right: 10px;
+        }
+
+        .comment-author a {
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        .comment-author a:hover {
+            text-decoration: underline;
+        }
+
+        .comment-date {
+            color: #7f8c8d;
+            font-size: 13px;
+        }
+
+        .comment-page {
+            display: block;
+            color: #7f8c8d;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+
+        .comment-page a {
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        .comment-page a:hover {
+            text-decoration: underline;
+        }
+
+        .comment-content {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .no-comments {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .controls label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .controls select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .controls select:hover {
+            border-color: #3498db;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .comment {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Recent Comments</h1>
+        <p class="subtitle">Latest approved comments from across the site</p>
+
+        <div class="controls">
+            <label for="limit">Show:</label>
+            <select id="limit" onchange="loadComments()">
+                <option value="5">5 comments</option>
+                <option value="10" selected>10 comments</option>
+                <option value="20">20 comments</option>
+                <option value="50">50 comments</option>
+                <option value="100">100 comments</option>
+            </select>
+        </div>
+
+        <div id="comments-container">
+            <div class="loading">Loading comments...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 1) return 'just now';
+            if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+            if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+            if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        function getPageTitle(url) {
+            // Extract last segment of path for display
+            const path = url.replace(/\/$/, '');
+            const parts = path.split('/');
+            const last = parts[parts.length - 1];
+            return last ? last.replace(/-/g, ' ') : 'Home';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function loadComments() {
+            const container = document.getElementById('comments-container');
+            const limit = document.getElementById('limit').value;
+
+            container.innerHTML = '<div class="loading">Loading comments...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}?action=recent&limit=${limit}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                if (!data.comments || data.comments.length === 0) {
+                    container.innerHTML = '<div class="no-comments">No comments yet.</div>';
+                    return;
+                }
+
+                let html = '';
+                data.comments.forEach(comment => {
+                    const authorHtml = comment.author_url
+                        ? `<a href="${escapeHtml(comment.author_url)}" target="_blank" rel="nofollow noopener">${escapeHtml(comment.author_name)}</a>`
+                        : escapeHtml(comment.author_name);
+
+                    const pageTitle = getPageTitle(comment.page_url);
+                    const commentLink = `${comment.page_url}#comment-${comment.id}`;
+
+                    html += `
+                        <div class="comment">
+                            <div class="comment-header">
+                                <span class="comment-author">${authorHtml}</span>
+                                <span class="comment-date">${formatDate(comment.created_at)}</span>
+                            </div>
+                            <div class="comment-content">${escapeHtml(comment.excerpt)}</div>
+                            <span class="comment-page">
+                                on <a href="${commentLink}">${escapeHtml(pageTitle)}</a>
+                            </span>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error('Error loading comments:', error);
+                container.innerHTML = `
+                    <div class="error">
+                        Failed to load comments: ${escapeHtml(error.message)}
+                    </div>
+                `;
+            }
+        }
+
+        // Load comments on page load
+        loadComments();
+    </script>
+</body>
+</html>

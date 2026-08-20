@@ -1,0 +1,15 @@
+node_modules/
+.wrangler/
+*.db
+*.sqlite3
+*.db-shm
+*.db-wal
+*.log
+db/
+db-backups/
+dist/
+build/
+target/
+worker/public
+worker/.dev.vars
+.freebuff

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'">
+    <title>Comment System Admin</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/admin.css">
+</head>
+<body>
+
+    <!-- ── Login screen ──────────────────────────────────────────────────── -->
+    <div id="login-section">
+        <h2 style="margin-bottom: 1.5rem;">Admin Login</h2>
+        <div id="login-message"></div>
+        <form id="login-form">
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+        </form>
+    </div>
+
+    <!-- ── Authenticated shell ────────────────────────────────────────────── -->
+    <div id="admin-shell" style="display:none;" class="layout-wrapper">
+        <!-- Sidebar Navigation -->
+        <aside id="admin-sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h2 class="sidebar-title">Admin Panel</h2>
+                <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Toggle menu">
+                    <i data-lucide="panel-right-open" class="icon-open"></i>
+                    <i data-lucide="panel-left-open" class="icon-collapsed" style="display:none;"></i>
+                </button>
+            </div>
+            <nav id="admin-nav" class="nav sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="section-icons">
+                    <label class="theme-switch" title="Toggle Light/Dark Mode">
+                        <input type="checkbox" id="toggle-switch">
+                        <div id="toggle-icon" class="header-icon">
+                            <i data-lucide="moon" class="dark-icon"></i>
+                            <i data-lucide="sun" class="light-icon" style="display:none;"></i>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Mobile Header (Visible only on small screens) -->
+            <div class="mobile-header">
+                <button id="mobile-sidebar-toggle" class="mobile-toggle" aria-label="Toggle menu">
+                    <i data-lucide="menu"></i>
+                </button>
+                <h1 class="page-title">Dashboard</h1>
+            </div>
+
+            <!-- Page content is mounted here -->
+            <div id="app"></div>
+        </div>
+    </div>
+
+    <!-- ── Shared scripts ─────────────────────────────────────────────────── -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="assets/admin-common.js"></script>
+    <script src="assets/admin-comment-edit.js"></script>
+    <script src="assets/admin-app.js"></script>
+    <script src="assets/light-dark-mode-panel.js"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "comments.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "setup": "node scripts/setup.js",
+    "dev": "cd worker && npx wrangler dev",
+    "deploy": "cd worker && npx wrangler deploy",
+    "predev": "node scripts/copy-admin.js",
+    "predeploy": "node scripts/copy-admin.js",
+    "telegram": "node scripts/telegram.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fardm/comments-garden.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/fardm/comments-garden/issues"
+  },
+  "homepage": "https://github.com/fardm/comments-garden#readme",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260816.1",
+    "@types/node": "^26.2.0",
+    "hono": "^4.13.2",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.123.0"
+  }
+}
