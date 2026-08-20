@@ -20,9 +20,7 @@ export class AdminService {
         spam: spamComments?.count || 0,
         approved: approvedComments?.count || 0,
         deleted: 0
-      },
-      unique_commenters: 0,
-      unique_ips: 0
+      }
     }
   }
 

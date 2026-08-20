@@ -402,28 +402,6 @@ VIEWS['all'] = {
 
     html: () => `
         <div class="container">
-            <div class="stats" id="stats">
-                <div class="stat-card" onclick="window.location.hash='pending'">
-                    <div class="stat-number" id="stat-pending">0</div>
-                    <div class="stat-label">Pending</div>
-                </div>
-                <div class="stat-card" onclick="applyStatusFilter('approved')">
-                    <div class="stat-number" id="stat-approved">0</div>
-                    <div class="stat-label">Approved</div>
-                </div>
-                <div class="stat-card" onclick="applyStatusFilter('spam')">
-                    <div class="stat-number" id="stat-spam">0</div>
-                    <div class="stat-label">Spam</div>
-                </div>
-                <div class="stat-card" onclick="clearFilters()">
-                    <div class="stat-number" id="stat-total">0</div>
-                    <div class="stat-label">Total</div>
-                </div>
-                <div class="stat-card" onclick="window.location.hash='post-reactions'">
-                    <div class="stat-number" id="stat-post-reactions">—</div>
-                    <div class="stat-label">Post Reactions</div>
-                </div>
-            </div>
             <div class="filters">
                 <select id="filter-status" onchange="applyFilters()">
                     <option value="all">All Statuses</option>
@@ -457,16 +435,6 @@ VIEWS['all'] = {
 
         async function loadDashboard() {
             await loadPage(1);
-            loadPostReactionsStat();
-        }
-
-        async function loadPostReactionsStat() {
-            try {
-                const r = await fetch(`${API_URL}?action=post_reactions_summary`, { credentials: 'include' });
-                if (r.ok) {
-                    document.getElementById('stat-post-reactions').textContent = (await r.json()).total || 0;
-                }
-            } catch (e) {}
         }
 
         async function loadPage(page) {
@@ -486,7 +454,6 @@ VIEWS['all'] = {
                     currentTotal = data.pagination.total;
                     displayComments(data.comments);
                     renderPagination(data.pagination.total);
-                    updateStats(data.aggregates);
                 } else {
                     container.innerHTML = `<div class="message error">Error: ${data.error || 'Failed to load'}</div>`;
                 }
@@ -570,14 +537,6 @@ VIEWS['all'] = {
                     </div>
                 </div>`;
             }).join('');
-        }
-
-        function updateStats(agg) {
-            document.getElementById('stat-pending').textContent  = agg.pending  ?? 0;
-            document.getElementById('stat-approved').textContent = agg.approved ?? 0;
-            document.getElementById('stat-spam').textContent     = agg.spam     ?? 0;
-            document.getElementById('stat-total').textContent    =
-                (agg.pending ?? 0) + (agg.approved ?? 0) + (agg.spam ?? 0) + (agg.deleted ?? 0);
         }
 
         async function moderateComment(id, status) {
@@ -787,8 +746,6 @@ VIEWS['analytics'] = {
     title: 'Analytics',
     css: `
         .dashboard { display:flex; flex-direction:column; gap:1.5rem; margin-bottom:2rem; }
-        .row-3-1 { display:grid; grid-template-columns:1fr 220px; gap:1.5rem; }
-        .row-2col { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
         .chart-card { background:var(--on-background); border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,.1); padding:1.25rem 1.5rem; }
         .chart-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:.5rem; }
         .chart-title { font-size:.92rem; font-weight:600; color:#555; }
@@ -802,13 +759,7 @@ VIEWS['analytics'] = {
         .legend-swatch { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
         .chart-empty { padding:2rem; text-align:center; color:#ccc; font-size:.9rem; }
         .chart-loading { padding:2rem; text-align:center; color:#bbb; font-size:.9rem; }
-        .donut-wrap { display:flex; flex-direction:column; align-items:center; gap:1rem; }
-        .donut-legend { width:100%; display:flex; flex-direction:column; gap:.35rem; font-size:.82rem; }
-        .donut-legend-row { display:flex; align-items:center; gap:.4rem; }
-        .donut-legend-row .dl-count { margin-left:auto; font-weight:600; color:#333; }
-        .donut-legend-row .dl-pct { color:#aaa; font-size:.75rem; min-width:32px; text-align:right; }
         #chart-tooltip { position:fixed; background:rgba(25,25,25,.92); color:#fff; padding:.45rem .7rem; border-radius:5px; font-size:.8rem; pointer-events:none; z-index:9999; display:none; line-height:1.7; max-width:220px; box-shadow:0 2px 8px rgba(0,0,0,.3); }
-        @media (max-width:1000px) { .row-3-1,.row-2col { grid-template-columns:1fr; } }
         @media (max-width:768px)  { .nav a { min-width:80px; font-size:.85rem; } }`,
 
     html: () => `
@@ -819,8 +770,6 @@ VIEWS['analytics'] = {
                 <div class="stat-card"><div class="stat-number green" id="stat-approved">—</div><div class="stat-label">Approved</div></div>
                 <div class="stat-card"><div class="stat-number yellow" id="stat-pending">—</div><div class="stat-label">Pending</div></div>
                 <div class="stat-card"><div class="stat-number red" id="stat-spam">—</div><div class="stat-label">Spam</div></div>
-                <div class="stat-card"><div class="stat-number gray" id="stat-commenters">—</div><div class="stat-label">Unique Commenters</div></div>
-                <div class="stat-card"><div class="stat-number gray" id="stat-ips">—</div><div class="stat-label">Unique IPs</div></div>
             </div>
             <div class="dashboard" id="dashboard">
                 <div class="chart-card">
@@ -839,25 +788,9 @@ VIEWS['analytics'] = {
                         <span class="legend-item"><span class="legend-swatch" style="background:#dc3545"></span>Spam</span>
                     </div>
                 </div>
-                <div class="row-3-1">
-                    <div class="chart-card">
-                        <div class="chart-header"><span class="chart-title">Top Posts by Comment Volume</span></div>
-                        <div id="top-posts-chart"><div class="chart-loading">Loading…</div></div>
-                    </div>
-                    <div class="chart-card">
-                        <div class="chart-header"><span class="chart-title">Status Breakdown</span></div>
-                        <div id="donut-chart" class="donut-wrap"><div class="chart-loading">Loading…</div></div>
-                    </div>
-                </div>
-                <div class="row-2col">
-                    <div class="chart-card">
-                        <div class="chart-header"><span class="chart-title">Activity by Hour<span class="chart-subtitle">(UTC, all time)</span></span></div>
-                        <div id="hourly-chart"><div class="chart-loading">Loading…</div></div>
-                    </div>
-                    <div class="chart-card">
-                        <div class="chart-header"><span class="chart-title">Activity by Day of Week<span class="chart-subtitle">(all time)</span></span></div>
-                        <div id="weekday-chart"><div class="chart-loading">Loading…</div></div>
-                    </div>
+                <div class="chart-card">
+                    <div class="chart-header"><span class="chart-title">Top Posts by Comment Volume</span></div>
+                    <div id="top-posts-chart"><div class="chart-loading">Loading…</div></div>
                 </div>
             </div>
         </div>`,
@@ -877,13 +810,8 @@ VIEWS['analytics'] = {
             document.getElementById('stat-approved').textContent   = fmt(st.approved || 0);
             document.getElementById('stat-pending').textContent    = fmt(st.pending  || 0);
             document.getElementById('stat-spam').textContent       = fmt(st.spam     || 0);
-            document.getElementById('stat-commenters').textContent = fmt(data.unique_commenters || 0);
-            document.getElementById('stat-ips').textContent        = fmt(data.unique_ips        || 0);
             renderTimeline();
-            renderDonut(st);
             renderTopPosts(data.top_posts  || []);
-            renderHourly(data.hourly       || []);
-            renderWeekday(data.weekdays    || []);
         }
 
         function setGranularity(g) {
@@ -922,22 +850,7 @@ VIEWS['analytics'] = {
                 r.addEventListener('mouseenter',e=>{const b=buckets[+r.dataset.i];const pct=b.total>0?Math.round(b.spam/b.total*100):0;showTip(ttEl,e,`<strong>${b.period}</strong><br>Total: <strong>${b.total}</strong><br>✅ ${b.approved}&ensp;⏳ ${b.pending}&ensp;🚫 ${b.spam} (${pct}%)`);});
                 r.addEventListener('mousemove',e=>moveTip(ttEl,e));r.addEventListener('mouseleave',()=>hideTip(ttEl));
             });
-        }
-
-        function renderDonut(st) {
-            const el=document.getElementById('donut-chart');if(!el)return;
-            const segs=[{key:'approved',label:'Approved',color:'#28a745'},{key:'pending',label:'Pending',color:'#ffc107'},{key:'spam',label:'Spam',color:'#dc3545'},{key:'deleted',label:'Deleted',color:'#adb5bd'}].filter(s=>(st[s.key]||0)>0);
-            const total=segs.reduce((a,s)=>a+(st[s.key]||0),0);
-            if(!total){el.innerHTML='<div class="chart-empty">No data</div>';return;}
-            const cx=90,cy=90,R=68,ri=40;let paths='',start=-Math.PI/2;
-            for(const s of segs){const frac=(st[s.key]||0)/total,sweep=frac*2*Math.PI;if(sweep<.001)continue;const end=start+sweep,cos1=Math.cos(start),sin1=Math.sin(start),cos2=Math.cos(end),sin2=Math.sin(end),large=sweep>Math.PI?1:0;const d=`M${(cx+R*cos1).toFixed(2)},${(cy+R*sin1).toFixed(2)} A${R},${R} 0 ${large},1 ${(cx+R*cos2).toFixed(2)},${(cy+R*sin2).toFixed(2)} L${(cx+ri*cos2).toFixed(2)},${(cy+ri*sin2).toFixed(2)} A${ri},${ri} 0 ${large},0 ${(cx+ri*cos1).toFixed(2)},${(cy+ri*sin1).toFixed(2)} Z`;paths+=`<path d="${d}" fill="${s.color}" class="donut-arc" data-label="${s.label}" data-count="${st[s.key]}" data-pct="${Math.round(frac*100)}" style="cursor:default"/>`;start=end;}
-            const legend=segs.map(s=>{const count=st[s.key]||0,pct=Math.round(count/total*100);return`<div class="donut-legend-row"><span class="legend-swatch" style="background:${s.color}"></span><span style="color:#555">${s.label}</span><span class="dl-count">${fmt(count)}</span><span class="dl-pct">${pct}%</span></div>`;}).join('');
-            el.innerHTML=`<svg viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:180px;display:block">${paths}<text x="${cx}" y="${cy-6}" text-anchor="middle" font-size="22" font-weight="700" fill="#333">${fmt(total)}</text><text x="${cx}" y="${cy+14}" text-anchor="middle" font-size="10" fill="#bbb">total</text></svg><div class="donut-legend">${legend}</div>`;
-            const ttEl=document.getElementById('chart-tooltip');
-            el.querySelectorAll('.donut-arc').forEach(p=>{p.addEventListener('mouseenter',e=>showTip(ttEl,e,`<strong>${p.dataset.label}</strong><br>${fmt(+p.dataset.count)} &nbsp;(${p.dataset.pct}%)`));p.addEventListener('mousemove',e=>moveTip(ttEl,e));p.addEventListener('mouseleave',()=>hideTip(ttEl));});
-        }
-
-        function renderTopPosts(posts) {
+        }        function renderTopPosts(posts) {
             const el=document.getElementById('top-posts-chart');if(!el)return;
             if(!posts.length){el.innerHTML='<div class="chart-empty">No posts yet</div>';return;}
             const W=700,ROW=30,URL_W=190,BAR_GAP=8,COUNT_W=32,BAR_W=W-URL_W-BAR_GAP-COUNT_W,H=posts.length*ROW+4;
@@ -946,23 +859,6 @@ VIEWS['analytics'] = {
             el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">${rows}</svg>`;
             const ttEl=document.getElementById('chart-tooltip');
             el.querySelectorAll('.post-ov').forEach(r=>{r.addEventListener('mouseenter',e=>{const p=posts[+r.dataset.i];const pct=p.total>0?Math.round(p.spam/p.total*100):0;showTip(ttEl,e,`<strong>${escapeHtml(p.page_url)}</strong><br>Total: <strong>${p.total}</strong><br>✅ ${p.approved}&ensp;⏳ ${p.pending}&ensp;🚫 ${p.spam} (${pct}%)`);});r.addEventListener('mousemove',e=>moveTip(ttEl,e));r.addEventListener('mouseleave',()=>hideTip(ttEl));});
-        }
-
-        function renderHourly(values) { const labels=Array.from({length:24},(_,h)=>h===0?'12am':h===12?'12pm':h<12?h+'am':(h-12)+'pm'); renderSimpleBar('hourly-chart',values,labels,'#4a90e2',3); }
-        function renderWeekday(values) { renderSimpleBar('weekday-chart',values,['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],'#7c3aed',1); }
-
-        function renderSimpleBar(containerId,values,labels,color,labelEvery) {
-            const el=document.getElementById(containerId);if(!el)return;
-            const maxRaw=Math.max(...values,1),ticks=niceTicks(maxRaw,3),maxVal=ticks[ticks.length-1];
-            const n=values.length,W=600,H=140,PL=35,PR=8,PT=10,PB=26,cW=W-PL-PR,cH=H-PT-PB;
-            let yLines='';for(const t of ticks){const y=(PT+cH-(t/maxVal)*cH).toFixed(1);yLines+=`<line x1="${PL}" x2="${W-PR}" y1="${y}" y2="${y}" stroke="#f0f0f0"/>`;if(t>0)yLines+=`<text x="${PL-4}" y="${+y+4}" text-anchor="end" font-size="9.5" fill="#c0c0c0">${t>=1000?(t/1000).toFixed(1)+'k':t}</text>`;}
-            const slotW=cW/n,barW=Math.max(2,Math.min(slotW*.72,40)),barOff=(slotW-barW)/2;
-            let bars='',xLabels='';
-            values.forEach((v,i)=>{const bx=(PL+i*slotW+barOff).toFixed(2),bh=v>0?Math.max(1.5,(v/maxVal)*cH):0,by=(PT+cH-bh).toFixed(2);bars+=`<rect x="${bx}" y="${by}" width="${barW.toFixed(2)}" height="${bh.toFixed(2)}" fill="${color}" rx="1" opacity="0.85"/>`;bars+=`<rect class="sb-ov" x="${(PL+i*slotW).toFixed(2)}" y="${PT}" width="${slotW.toFixed(2)}" height="${cH}" fill="rgba(0,0,0,0)" pointer-events="all" data-i="${i}"/>`;if(i%labelEvery===0){xLabels+=`<text x="${(PL+i*slotW+slotW/2).toFixed(1)}" y="${H-4}" text-anchor="middle" font-size="9.5" fill="#c0c0c0">${labels[i]}</text>`;}});
-            const axes=`<line x1="${PL}" x2="${PL}" y1="${PT}" y2="${PT+cH}" stroke="#e8e8e8"/><line x1="${PL}" x2="${W-PR}" y1="${PT+cH}" y2="${PT+cH}" stroke="#e8e8e8"/>`;
-            el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">${yLines}${axes}${bars}${xLabels}</svg>`;
-            const ttEl=document.getElementById('chart-tooltip');
-            el.querySelectorAll('.sb-ov').forEach(r=>{r.addEventListener('mouseenter',e=>{const i=+r.dataset.i;showTip(ttEl,e,`<strong>${labels[i]}</strong><br>${fmt(values[i])} comment${values[i]!==1?'s':''}`);});r.addEventListener('mousemove',e=>moveTip(ttEl,e));r.addEventListener('mouseleave',()=>hideTip(ttEl));});
         }
 
         function showTip(ttEl,e,html){if(!ttEl)return;ttEl.innerHTML=html;ttEl.style.display='block';moveTip(ttEl,e);}
