@@ -55,7 +55,7 @@ The local server will be available at:
 
 The local admin panel is available at:
 
-`http://127.0.0.1:8787/admin/index.html`
+`http://127.0.0.1:8787/admin`
 
 ### Step 4: Deploy to Cloudflare
 
@@ -71,13 +71,11 @@ For example:
 
 ## Accessing the Admin Panel
 
-To manage comments and change settings, open your deployed Worker URL and add:
-
-`/admin/index.html`
+To manage comments and change settings, open your deployed Worker URL and add: `/admin`
 
 For example:
 
-`https://comments-garden.<your-username>.workers.dev/admin/index.html`
+`https://comments-garden.<your-username>.workers.dev/admin`
 
 Log in using the admin password you created during setup.
 
@@ -154,7 +152,7 @@ Open the HTML file in a browser and the comments section should load and connect
 
 Comments Garden can be integrated with Quartz v5 using the official Quartz plugin.
 
-For installation instructions and configuration, see the [Quartz Comments Garden plugin](https://github.com/fardm/quartz-comments-garden).
+For installation instructions and configuration, see the [Quartz Comments Garden plugin](https://github.com/fardm/comments-garden-quartz).
 
 
 ## Credits
