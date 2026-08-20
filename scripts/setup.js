@@ -56,10 +56,15 @@ function getDbName() {
 }
 
 function updateWranglerToml(dbName, dbId) {
-  let toml = fs.readFileSync(WRANGLER_TOML, 'utf-8');
-  toml = toml.replace(/database_name\s*=\s*"[^"]*"/g, `database_name = "${dbName}"`);
-  toml = toml.replace(/database_id\s*=\s*"[^"]*"/g, `database_id = "${dbId}"`);
-  fs.writeFileSync(WRANGLER_TOML, toml);
+  const content = fs.readFileSync(WRANGLER_TOML, 'utf-8');
+  const eol = content.includes('\r\n') ? '\r\n' : '\n';
+  const lines = content.split(/\r?\n/);
+  const updated = lines.map(line => {
+    if (/^database_name\s*=/.test(line)) return `database_name = "${dbName}"`;
+    if (/^database_id\s*=/.test(line)) return `database_id = "${dbId}"`;
+    return line;
+  });
+  fs.writeFileSync(WRANGLER_TOML, updated.join(eol));
 }
 
 // ── Cloudflare auth check ────────────────────────────────────────────────────
@@ -143,85 +148,82 @@ function createDatabase(dbName) {
 function initSchema(dbName) {
   console.log('🏗️  Initializing database schema...');
   console.log('   -> Local database');
-  runCommand(`npx wrangler d1 execute "${dbName}" --local --file="${SCHEMA_PATH}"`);
+  try {
+    execSync(`npx wrangler d1 execute "${dbName}" --local --file="${SCHEMA_PATH}"`, {
+      encoding: 'utf-8', stdio: 'pipe', cwd: WORKER_DIR,
+    });
+    console.log('   -> Local: applied');
+  } catch (e) {
+    console.error('❌ Local schema initialization failed:');
+    console.error((e.stderr || e.stdout || e.message || '').trim());
+    process.exit(1);
+  }
 
   console.log('   -> Remote database');
   try {
     execSync(`npx wrangler d1 execute "${dbName}" --remote --file="${SCHEMA_PATH}"`, {
-      encoding: 'utf-8', stdio: 'inherit', cwd: WORKER_DIR,
+      encoding: 'utf-8', stdio: 'pipe', cwd: WORKER_DIR,
     });
+    console.log('   -> Remote: applied');
   } catch (e) {
-    console.log('   Remote database execution might have failed or needs confirmation. Continuing.');
+    console.error('❌ Remote schema initialization failed:');
+    console.error((e.stderr || e.stdout || e.message || '').trim());
+    process.exit(1);
   }
+
   console.log('✅ Schema initialized\n');
 }
 
 function applyMigrations(dbName) {
   console.log('📦 Applying database migrations...\n');
 
-  // Apply schema.sql first (idempotent via CREATE TABLE IF NOT EXISTS)
-  console.log('   [1/2] Base schema (idempotent)...');
-  try {
-    execSync(`npx wrangler d1 execute "${dbName}" --local --file="${SCHEMA_PATH}"`, {
-      encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], cwd: WORKER_DIR,
-    });
-    console.log('   -> Local: applied');
-  } catch (e) {
-    console.log('   -> Local: skipped (' + (e.message || 'error') + ')');
-  }
-  try {
-    execSync(`npx wrangler d1 execute "${dbName}" --remote --file="${SCHEMA_PATH}"`, {
-      encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], cwd: WORKER_DIR,
-    });
-    console.log('   -> Remote: applied');
-  } catch (e) {
-    console.log('   -> Remote: skipped (' + (e.message || 'error') + ')');
+  if (!fs.existsSync(MIGRATIONS_DIR)) {
+    console.log('   No migrations directory found.\n');
+    return;
   }
 
-  // Apply any .sql migration files from the migrations directory
-  if (fs.existsSync(MIGRATIONS_DIR)) {
-    const files = fs.readdirSync(MIGRATIONS_DIR)
-      .filter(f => f.endsWith('.sql'))
-      .sort();
+  const files = fs.readdirSync(MIGRATIONS_DIR)
+    .filter(f => f.endsWith('.sql'))
+    .sort();
 
-    if (files.length > 0) {
-      console.log(`\n   [2/2] ${files.length} migration file(s) found...\n`);
-      for (const file of files) {
-        const filePath = path.join(MIGRATIONS_DIR, file);
-        const sql = fs.readFileSync(filePath, 'utf-8');
+  if (files.length === 0) {
+    console.log('   No migration files found.\n');
+    return;
+  }
 
-        // Extract comment lines for display
-        const firstComment = sql.split('\n').find(l => l.startsWith('--'));
-        const label = firstComment ? firstComment.replace(/^--\s*/, '').trim() : file;
-        console.log(`   📄 ${label}`);
+  console.log(`   ${files.length} migration file(s) found...\n`);
+  for (const file of files) {
+    const filePath = path.join(MIGRATIONS_DIR, file);
+    const sql = fs.readFileSync(filePath, 'utf-8');
 
-        // Try to run each statement from the migration file individually
-        // to gracefully handle "duplicate column" and similar idempotency errors
-        const statements = sql
-          .split(';')
-          .map(s => s.trim())
-          .filter(s => s.length > 0 && !s.startsWith('--'));
+    // Extract comment lines for display
+    const firstComment = sql.split('\n').find(l => l.startsWith('--'));
+    const label = firstComment ? firstComment.replace(/^--\s*/, '').trim() : file;
+    console.log(`   📄 ${label}`);
 
-        for (const stmt of statements) {
-          for (const target of ['--local', '--remote']) {
-            try {
-              execSync(`npx wrangler d1 execute "${dbName}" ${target} --command="${stmt.replace(/"/g, '\\"')}"`, {
-                encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], cwd: WORKER_DIR,
-              });
-              console.log(`      -> ${target.replace('--', '')}: applied`);
-            } catch (e) {
-              const msg = (e.stderr || e.stdout || '').toLowerCase();
-              if (msg.includes('duplicate column') || msg.includes('duplicate table') || msg.includes('already exists')) {
-                console.log(`      -> ${target.replace('--', '')}: already up to date`);
-              } else {
-                console.log(`      -> ${target.replace('--', '')}: skipped (${(e.message || 'error').substring(0, 80)})`);
-              }
-            }
+    // Try to run each statement from the migration file individually
+    // to gracefully handle "duplicate column" and similar idempotency errors
+    const statements = sql
+      .split(';')
+      .map(s => s.trim())
+      .filter(s => s.length > 0 && !s.startsWith('--'));
+
+    for (const stmt of statements) {
+      for (const target of ['--local', '--remote']) {
+        try {
+          execSync(`npx wrangler d1 execute "${dbName}" ${target} --command="${stmt.replace(/"/g, '\\"')}"`, {
+            encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], cwd: WORKER_DIR,
+          });
+          console.log(`      -> ${target.replace('--', '')}: applied`);
+        } catch (e) {
+          const msg = (e.stderr || e.stdout || '').toLowerCase();
+          if (msg.includes('duplicate column') || msg.includes('duplicate table') || msg.includes('already exists')) {
+            console.log(`      -> ${target.replace('--', '')}: already up to date`);
+          } else {
+            console.log(`      -> ${target.replace('--', '')}: skipped (${(e.message || 'error').substring(0, 80)})`);
           }
         }
       }
-    } else {
-      console.log('   [2/2] No migration files found.\n');
     }
   }
 
@@ -257,13 +259,13 @@ async function optionInitialSetup() {
   updateWranglerToml(dbName, dbId);
   console.log('✅ wrangler.toml updated\n');
 
-  // 4. Initialize schema
+  // 4. Initialize schema (applies schema.sql; exits on failure)
   initSchema(dbName);
 
-  // 5. Apply migrations
+  // 5. Apply migrations (only migration files, not schema.sql)
   applyMigrations(dbName);
 
-  // 6. Admin password
+  // 6. Admin password (only reached if schema + migrations succeeded)
   console.log('🔐 Admin Account Setup');
   let password = await prompt('Enter a new admin password: ');
   while (!password || password.trim().length < 4) {
