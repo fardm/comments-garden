@@ -169,6 +169,17 @@ function handleHashChange() {
     mountView(currentHash());
 }
 
+// ── Page URL helper ─────────────────────────────────────────────────────────
+function renderPageUrl(pageUrl) {
+    var origins = (window.AdminConfig && window.AdminConfig.allowedOrigins) || ['*'];
+    var specificOrigin = origins.find(function(o) { return o !== '*'; });
+    if (specificOrigin) {
+        var fullUrl = specificOrigin.replace(/\/$/, '') + (pageUrl.startsWith('/') ? pageUrl : '/' + pageUrl);
+        return '<a href="' + escapeHtml(fullUrl) + '" target="_blank" style="color:#4a90e2;text-decoration:none;">' + escapeHtml(pageUrl) + '</a>';
+    }
+    return '<span>' + escapeHtml(pageUrl) + '</span>';
+}
+
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 (function boot() {
@@ -186,7 +197,8 @@ function handleHashChange() {
                     if (data && !data.error) {
                         window.AdminConfig = {
                             timezone: data.timezone || 'UTC',
-                            calendar: data.app_calendar || 'gregorian'
+                            calendar: data.app_calendar || 'gregorian',
+                            allowedOrigins: data.allowed_origins || ['*']
                         };
                     }
                 })
@@ -301,7 +313,7 @@ VIEWS['pending'] = {
                         <span>${formatDate(comment.created_at)}</span>
                         <span class="badge badge-pending">Pending</span>
                     </div>
-                    <div class="body-text"><strong>Page:</strong> <a href="${escapeHtml(comment.page_url_href || comment.page_url)}" target="_blank" style="color:#4a90e2;text-decoration:none;">${escapeHtml(comment.page_url_href || comment.page_url)}</a></div>
+                    <div class="body-text"><strong>Page:</strong> ${renderPageUrl(comment.page_url)}</div>
                     <div class="body-text"><strong>IP:</strong> ${escapeHtml(comment.ip_address || 'N/A')}</div>
                     <div class="comment-content" dir="auto" id="comment-content-${comment.id}">${escapeHtml(comment.content)}</div>
                     ${reactionSummary ? `<div class="body-text"><strong>Reactions:</strong> ${reactionSummary}</div>` : ''}
@@ -521,7 +533,7 @@ VIEWS['all'] = {
                         <span>${formatDate(comment.created_at)}</span>
                         <span class="badge badge-${comment.status}">${comment.status}</span>
                     </div>
-                    <div class="body-text"><strong>Page:</strong> <a href="${escapeHtml(comment.page_url_href || comment.page_url)}" target="_blank" style="color:#4a90e2;text-decoration:none;">${escapeHtml(comment.page_url_href || comment.page_url)}</a></div>
+                    <div class="body-text"><strong>Page:</strong> ${renderPageUrl(comment.page_url)}</div>
                     <div class="body-text"><strong>IP:</strong> ${escapeHtml(comment.ip_address || 'N/A')}</div>
                     ${comment.parent_id ? `<div class="body-text"><strong>Reply to:</strong> Comment #${comment.parent_id}</div>` : ''}
                     <div class="comment-content" dir="auto" id="comment-content-${comment.id}">${escapeHtml(comment.content)}</div>
@@ -1328,7 +1340,7 @@ VIEWS['settings-configuration'] = {
                 </div>
             </div>
 
-            <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
+            <button id="save-config-btn" class="btn btn-primary" onclick="saveConfig()">Save</button>
         </div>`,
 
     init({ hoistToWindow }) {
@@ -1420,7 +1432,11 @@ VIEWS['settings-configuration'] = {
                 const d = await r.json();
 
                 if (r.ok && sReq.ok) {
-                    if (msgEl) msgEl.innerHTML = '<div class="message success">Configuration and Profile saved successfully</div>';
+                    var saveBtn = document.getElementById('save-config-btn');
+                    if (saveBtn) {
+                        saveBtn.textContent = 'Saved \u2713';
+                        setTimeout(function() { saveBtn.textContent = 'Save'; }, 1500);
+                    }
                 } else {
                     if (msgEl) msgEl.innerHTML = `<div class="message error">${d.error || 'Failed to save configuration'}</div>`;
                 }
