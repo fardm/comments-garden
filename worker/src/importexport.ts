@@ -168,8 +168,8 @@ export class ImportExportService {
 
       commentStmts.push(
         this.db.prepare(`
-          INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, user_agent)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, user_agent, author_role)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
           c.page_url,
           null, // defer parent linking
@@ -182,6 +182,7 @@ export class ImportExportService {
           c.status || 'approved',
           c.ip_address || null,
           c.user_agent || null,
+          c.author_role || 'user',
         )
       )
       commentMeta.push(c)
@@ -339,8 +340,8 @@ export class ImportExportService {
         }
 
         await this.db.prepare(`
-          INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, user_agent)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, user_agent, author_role)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
           comment.page_url,
           parentId,
@@ -353,6 +354,7 @@ export class ImportExportService {
           status,
           ip,
           userAgent,
+          comment.author_role || 'user',
         ).run()
 
         imported++
