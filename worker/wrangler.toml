@@ -13,4 +13,3 @@ binding = "ASSETS"
 
 [vars]
 ALLOWED_ORIGINS = "*"
-:
