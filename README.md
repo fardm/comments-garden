@@ -69,15 +69,25 @@ For example:
 
 `https://comments-garden.<your-username>.workers.dev`
 
-## Accessing the Admin Panel
 
-To manage comments and change settings, open your deployed Worker URL and add: `/admin`
+## The Admin Panel
+
+To manage comments and configure your comment system, open your deployed Worker URL and add `/admin`.
 
 For example:
 
 `https://comments-garden.<your-username>.workers.dev/admin`
 
 Log in using the admin password you created during setup.
+
+From the Admin Panel, you can configure:
+
+- **Allowed Origins** — Websites allowed to use the comment system.
+- **Timezone** — Timezone used for dates and notifications.
+- **Frontend Language** — Language displayed in the comments interface.
+- **Calendar System** — Calendar system used for dates.
+
+The **Admin Profile** is used to automatically fill in the author information when submitting replies from the Admin Panel.
 
 ## Telegram Notifications
 
@@ -113,6 +123,7 @@ You can also use this menu later to change the Bot Token, Chat ID, enable or dis
 After completing the Telegram setup or changing its settings, redeploy the Worker:
 
 `npm run deploy`
+
 
 ## Testing the Worker
 
