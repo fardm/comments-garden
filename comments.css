@@ -36,15 +36,17 @@
     color: var(--btn-brightness)
 }
 
-/* Post Reactions Section */
+/* Post Reactions Section
+   Row 1: Add Reaction button + picker (stable position)
+   Row 2: registered reaction badges */
 .comments-system .post-reactions-section {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
     margin-top: 1rem;
     margin-bottom: 2rem;
-    flex-wrap: wrap;
 }
 
 .comments-system .post-reactions-label {
@@ -187,6 +189,11 @@
     gap: 0.4rem;
     align-items: center;
     flex-wrap: wrap;
+}
+
+#comments-container .comments-system .post-reactions-section .post-reactions-badges {
+    justify-content: center;
+    width: 100%;
 }
 
 #comments-container .comments-system .reaction-picker-wrap.no-badges .comment-reaction-badges {
@@ -511,6 +518,20 @@
     .comments-system .btn-submit,
     .comments-system .btn-cancel {
         width: 100%;
+    }
+
+    /* Keep post reaction picker centered in the viewport on mobile */
+    #cs-post-reaction-picker-wrap .cs-reaction-picker {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%) translateY(-4px) scale(0.98);
+        max-width: calc(100vw - 2rem);
+        box-sizing: border-box;
+        justify-content: center;
+    }
+
+    #cs-post-reaction-picker-wrap.open .cs-reaction-picker {
+        transform: translateX(-50%) translateY(0) scale(1);
     }
 }
 
