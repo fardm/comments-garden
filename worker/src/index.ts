@@ -404,10 +404,13 @@ const handler = async (c: any) => {
         const { meta } = await db.prepare('DELETE FROM comments').run()
         result.comments = meta.changes || 0
       }
-      if (body.delete_reactions) {
-        const { meta: postMeta } = await db.prepare('DELETE FROM post_reactions').run()
-        const { meta: voteMeta } = await db.prepare('DELETE FROM votes').run()
-        result.reactions = (postMeta.changes || 0) + (voteMeta.changes || 0)
+      if (body.delete_post_reactions) {
+        const { meta } = await db.prepare('DELETE FROM post_reactions').run()
+        result.post_reactions = meta.changes || 0
+      }
+      if (body.delete_comment_reactions) {
+        const { meta } = await db.prepare('DELETE FROM votes').run()
+        result.comment_reactions = meta.changes || 0
       }
 
       return c.json({ deleted: result })

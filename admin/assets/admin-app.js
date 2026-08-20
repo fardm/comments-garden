@@ -1452,7 +1452,7 @@ VIEWS['settings-database'] = {
         .util-card-header h2 { font-size:1.1rem; color:var(--body-text,#333); }
         .util-card-header .icon { font-size:1.2rem; }
         .util-card-body { padding:1.5rem; }
-        .db-stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; margin-bottom:1.25rem; }
+        .db-stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:1.25rem; }
         .db-stat-item { background:var(--light); border:solid 1px var(--gray); border-radius:6px; padding:.75rem 1rem; text-align:center; }
         .db-stat-item .num { font-size:1.4rem; font-weight:700; color:#4a90e2; }
         .db-stat-item .lbl { font-size:.78rem; color:#888; text-transform:uppercase; letter-spacing:.03em; }
@@ -1476,7 +1476,6 @@ VIEWS['settings-database'] = {
                     <div id="db-stats-area"><p>Loading database stats...</p></div>
                     <div id="db-message"></div>
                     <div class="db-actions">
-                        <button class="btn btn-secondary btn-sm" onclick="loadDbStats()">Refresh Stats</button>
                         <button class="btn btn-primary btn-sm" onclick="vacuumDb()">Optimize (VACUUM)</button>
                         <button class="btn btn-danger btn-sm" onclick="deleteSpam()" id="btn-delete-spam">Purge All Spam</button>
                         <button class="btn btn-danger btn-sm" onclick="openDeleteDataModal()">Delete Data</button>
@@ -1492,7 +1491,8 @@ VIEWS['settings-database'] = {
                         <label class="checkbox-row" style="display:flex;align-items:center;gap:.5rem;margin:.25rem 0;"><input type="checkbox" id="dd-select-all" onchange="toggleDeleteDataSelectAll()"><span><strong>Select All</strong></span></label>
                         <div style="margin-top:.5rem;">
                             <label class="checkbox-row" style="display:flex;align-items:center;gap:.5rem;margin:.25rem 0;"><input type="checkbox" id="dd-comments" onchange="syncDeleteDataSelectAll()"><span>Comments <span class="muted" id="dd-count-comments">(…)</span></span></label>
-                            <label class="checkbox-row" style="display:flex;align-items:center;gap:.5rem;margin:.25rem 0;"><input type="checkbox" id="dd-reactions" onchange="syncDeleteDataSelectAll()"><span>Reactions <span class="muted" id="dd-count-reactions">(…)</span></span></label>
+                            <label class="checkbox-row" style="display:flex;align-items:center;gap:.5rem;margin:.25rem 0;"><input type="checkbox" id="dd-post-reactions" onchange="syncDeleteDataSelectAll()"><span>Post Reactions <span class="muted" id="dd-count-post-reactions">(…)</span></span></label>
+                            <label class="checkbox-row" style="display:flex;align-items:center;gap:.5rem;margin:.25rem 0;"><input type="checkbox" id="dd-comment-reactions" onchange="syncDeleteDataSelectAll()"><span>Comment Reactions <span class="muted" id="dd-count-comment-reactions">(…)</span></span></label>
                         </div>
                         <div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--gray,#dee2e6);">
                             <label style="display:flex;align-items:flex-start;gap:.5rem;"><input type="checkbox" id="dd-confirm"><span>I understand this action is permanent and want to delete the selected data.</span></label>
@@ -1518,10 +1518,9 @@ VIEWS['settings-database'] = {
                 const t = d.tables, cs = d.comment_statuses || {};
                 area.innerHTML = `<div class="db-stats-grid">
                     <div class="db-stat-item"><div class="num">${t.comments ?? 0}</div><div class="lbl">Comments</div></div>
-                    <div class="db-stat-item"><div class="num">${cs.pending ?? 0}</div><div class="lbl">Pending</div></div>
-                    <div class="db-stat-item"><div class="num">${cs.spam ?? 0}</div><div class="lbl">Spam</div></div>
-                    <div class="db-stat-item"><div class="num">${t.votes ?? 0}</div><div class="lbl">Votes</div></div>
-                    <div class="db-stat-item"><div class="num">${formatBytes(d.db_size_bytes)}</div><div class="lbl">DB Size</div></div>
+                    <div class="db-stat-item"><div class="num">${t.post_reactions ?? 0}</div><div class="lbl">Post Reactions</div></div>
+                    <div class="db-stat-item"><div class="num">${t.comment_reactions ?? 0}</div><div class="lbl">Comment Reactions</div></div>
+                    <div class="db-stat-item"><div class="num">${d.db_size_bytes > 0 ? formatBytes(d.db_size_bytes) : '—'}</div><div class="lbl">DB Size</div></div>
                 </div>`;
                 const spamCount = cs.spam ?? 0;
                 const btn = document.getElementById('btn-delete-spam');
@@ -1559,7 +1558,7 @@ VIEWS['settings-database'] = {
             if (!m) return;
             m.style.display = 'flex';
             document.getElementById('dd-select-all').checked = false;
-            ['comments','reactions','confirm'].forEach(k => { const el = document.getElementById('dd-'+k); if (el) el.checked = false; });
+            ['comments','post-reactions','comment-reactions','confirm'].forEach(k => { const el = document.getElementById('dd-'+k); if (el) el.checked = false; });
             document.getElementById('dd-message').innerHTML = '';
             document.getElementById('dd-delete-btn').disabled = true;
             syncDeleteDataSelectAll();
@@ -1569,7 +1568,8 @@ VIEWS['settings-database'] = {
                 .then(d => {
                     if (d.tables) {
                         const c = document.getElementById('dd-count-comments'); if (c) c.textContent = `(${d.tables.comments ?? 0})`;
-                        const r = document.getElementById('dd-count-reactions'); if (r) r.textContent = `(${(d.tables.reactions ?? 0) + (d.tables.post_reactions ?? 0)})`;
+                        const pr = document.getElementById('dd-count-post-reactions'); if (pr) pr.textContent = `(${d.tables.post_reactions ?? 0})`;
+                        const cr = document.getElementById('dd-count-comment-reactions'); if (cr) cr.textContent = `(${d.tables.comment_reactions ?? 0})`;
                     }
                 }).catch(()=>{});
         }
@@ -1581,7 +1581,7 @@ VIEWS['settings-database'] = {
 
         function toggleDeleteDataSelectAll() {
             const allChecked = document.getElementById('dd-select-all').checked;
-            ['comments','reactions'].forEach(k => {
+            ['comments','post-reactions','comment-reactions'].forEach(k => {
                 const el = document.getElementById('dd-'+k);
                 if (el) el.checked = allChecked;
             });
@@ -1591,8 +1591,9 @@ VIEWS['settings-database'] = {
         function syncDeleteDataSelectAll() {
             const all = document.getElementById('dd-select-all');
             const c = document.getElementById('dd-comments').checked;
-            const r = document.getElementById('dd-reactions').checked;
-            if (all) all.checked = (c && r);
+            const pr = document.getElementById('dd-post-reactions').checked;
+            const cr = document.getElementById('dd-comment-reactions').checked;
+            if (all) all.checked = (c && pr && cr);
             updateDeleteDataBtn();
         }
 
@@ -1600,11 +1601,12 @@ VIEWS['settings-database'] = {
             const btn = document.getElementById('dd-delete-btn');
             const conf = document.getElementById('dd-confirm');
             if (!btn || !conf) return;
-            const anyChecked = ['comments','reactions'].some(k => document.getElementById('dd-'+k)?.checked);
+            const items = ['comments','post-reactions','comment-reactions'];
+            const anyChecked = items.some(k => document.getElementById('dd-'+k)?.checked);
             btn.disabled = !(anyChecked && conf.checked);
             if (conf) {
                 conf.onchange = () => {
-                    const anyCheckedNow = ['comments','reactions'].some(k => document.getElementById('dd-'+k)?.checked);
+                    const anyCheckedNow = items.some(k => document.getElementById('dd-'+k)?.checked);
                     btn.disabled = !(anyCheckedNow && conf.checked);
                 };
             }
@@ -1618,7 +1620,8 @@ VIEWS['settings-database'] = {
             const req = {
                 csrf_token: AdminAuth.getCsrfToken(),
                 delete_comments: document.getElementById('dd-comments').checked,
-                delete_reactions: document.getElementById('dd-reactions').checked,
+                delete_post_reactions: document.getElementById('dd-post-reactions').checked,
+                delete_comment_reactions: document.getElementById('dd-comment-reactions').checked,
             };
 
             btn.disabled = true;
@@ -1633,7 +1636,8 @@ VIEWS['settings-database'] = {
                 if (r.ok) {
                     const parts = [];
                     if (d.deleted?.comments !== undefined) parts.push(`${d.deleted.comments} comment(s)`);
-                    if (d.deleted?.reactions !== undefined) parts.push(`${d.deleted.reactions} reaction(s)`);
+                    if (d.deleted?.post_reactions !== undefined) parts.push(`${d.deleted.post_reactions} post reaction(s)`);
+                    if (d.deleted?.comment_reactions !== undefined) parts.push(`${d.deleted.comment_reactions} comment reaction(s)`);
 
                     const resStr = parts.length > 0 ? parts.join(', ') : 'no data';
                     msgEl.innerHTML = `<div class="message success">Successfully deleted ${resStr}. Vacuuming database...</div>`;
@@ -1657,7 +1661,7 @@ VIEWS['settings-database'] = {
         }
 
         hoistToWindow({
-            loadDbStats, vacuumDb, deleteSpam,
+            vacuumDb, deleteSpam,
             openDeleteDataModal, closeDeleteDataModal, toggleDeleteDataSelectAll, syncDeleteDataSelectAll, runDeleteData
         });
 

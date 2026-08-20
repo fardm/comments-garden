@@ -114,20 +114,30 @@ export class AdminService {
 
   async getDbStats() {
     const counts = await this.getAnalytics()
+
+    // Get actual database size via SQLite PRAGMAs
+    let db_size_bytes = 0
+    try {
+      const pageCount = await this.db.prepare('PRAGMA page_count').first<{ page_count: number }>()
+      const pageSize = await this.db.prepare('PRAGMA page_size').first<{ page_size: number }>()
+      if (pageCount && pageSize) {
+        db_size_bytes = (pageCount.page_count || 0) * (pageSize.page_size || 0)
+      }
+    } catch (_) {
+      // PRAGMA may not be supported in all D1 environments
+    }
+
+    // Get actual counts for each table
+    const postReactionsCount = await this.db.prepare('SELECT COUNT(*) as count FROM post_reactions').first<{count: number}>()
+    const commentReactionsCount = await this.db.prepare('SELECT COUNT(*) as count FROM votes').first<{count: number}>()
+
     return {
-      db_size_bytes: 1024 * 1024, // Fake size for now
+      db_size_bytes,
       counts,
       tables: {
         comments: counts.total_comments,
-        settings: 6,
-        votes: 0,
-        post_reactions: 0,
-        reactions: 0
-      },
-      comment_statuses: {
-        pending: counts.pending_comments,
-        spam: counts.spam_comments,
-        total: counts.total_comments
+        post_reactions: postReactionsCount?.count || 0,
+        comment_reactions: commentReactionsCount?.count || 0
       }
     }
   }
