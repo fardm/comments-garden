@@ -1142,7 +1142,7 @@ VIEWS['post-reactions'] = {
                 const ip         = escapeHtml(r.ip_address || 'N/A');
                 const reactionId = r.id || r.reaction_id;
                 const pageUrlEsc = (r.page_url || '').replace(/'/g, "\\'");
-                return `<tr><td class="page-url"><a href="${safeUrl}" target="_blank">${truncatedUrl}</a></td><td class="reaction-emoji-cell">${emoji}</td><td class="ip-cell">${ip}</td><td class="date-cell">${date}</td><td class="actions-cell"><button class="btn btn-ghost-danger btn-sm" onclick="clearReaction('${reactionId}','${pageUrlEsc}','${r.reaction_type}')"><i data-lucide="trash-2"></i></button></td></tr>`;
+                return `<tr><td class="page-url">${renderPageUrl(r.page_url || '')}</td><td class="reaction-emoji-cell">${emoji}</td><td class="ip-cell">${ip}</td><td class="date-cell">${date}</td><td class="actions-cell"><button class="btn btn-ghost-danger btn-sm" onclick="clearReaction('${reactionId}','${pageUrlEsc}','${r.reaction_type}')"><i data-lucide="trash-2"></i></button></td></tr>`;
             }).join('');
             container.innerHTML = `<table class="latest-reactions-table"><thead>${thead}</thead><tbody>${rows}</tbody></table>`;
 

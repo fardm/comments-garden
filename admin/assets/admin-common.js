@@ -145,6 +145,7 @@ const AdminAuth = (() => {
     // ── logout ────────────────────────────────────────────────────────────────
 
     async function logout() {
+        if (!confirm('Are you sure you want to log out?')) return;
         try {
             await fetch(`${API_URL}?action=logout`, { method: 'POST', credentials: 'include' });
         } catch (_) {}
