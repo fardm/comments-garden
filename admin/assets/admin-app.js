@@ -792,6 +792,10 @@ VIEWS['analytics'] = {
                     <div class="chart-header"><span class="chart-title">Top Posts by Comment Volume</span></div>
                     <div id="top-posts-chart"><div class="chart-loading">Loading…</div></div>
                 </div>
+                <div class="chart-card">
+                    <div class="chart-header"><span class="chart-title">Audience Reaction Balance</span></div>
+                    <div id="reaction-balance-chart"><div class="chart-loading">Loading…</div></div>
+                </div>
             </div>
         </div>`,
 
@@ -799,8 +803,12 @@ VIEWS['analytics'] = {
         let analyticsData      = null;
         let currentGranularity = 'daily';
 
-        const r = await fetch(`${API_URL}?action=analytics&_=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
-        if (r.ok) loadAnalytics(await r.json());
+        const [analyticsResp, reactionsResp] = await Promise.all([
+            fetch(`${API_URL}?action=analytics&_=${Date.now()}`, { credentials: 'include', cache: 'no-store' }),
+            fetch(`${API_URL}?action=post_reactions_summary&_=${Date.now()}`, { credentials: 'include', cache: 'no-store' })
+        ]);
+        if (analyticsResp.ok) loadAnalytics(await analyticsResp.json());
+        if (reactionsResp.ok) renderReactionBalance(await reactionsResp.json());
 
         function loadAnalytics(data) {
             analyticsData = data;
@@ -861,6 +869,90 @@ VIEWS['analytics'] = {
             el.querySelectorAll('.post-ov').forEach(r=>{r.addEventListener('mouseenter',e=>{const p=posts[+r.dataset.i];const pct=p.total>0?Math.round(p.spam/p.total*100):0;showTip(ttEl,e,`<strong>${escapeHtml(p.page_url)}</strong><br>Total: <strong>${p.total}</strong><br>✅ ${p.approved}&ensp;⏳ ${p.pending}&ensp;🚫 ${p.spam} (${pct}%)`);});r.addEventListener('mousemove',e=>moveTip(ttEl,e));r.addEventListener('mouseleave',()=>hideTip(ttEl));});
         }
 
+        function renderReactionBalance(data) {
+            const el = document.getElementById('reaction-balance-chart');
+            if (!el) return;
+            const pages = data.pages || [];
+            if (!data.total || data.total === 0) {
+                el.innerHTML = '<div class="chart-empty">No reactions yet</div>';
+                return;
+            }
+            // Aggregate totals across all pages
+            const totals = {};
+            pages.forEach(page => {
+                const reactions = page.reactions || {};
+                for (const [type, count] of Object.entries(reactions)) {
+                    totals[type] = (totals[type] || 0) + (parseInt(count) || 0);
+                }
+            });
+            const POSITIVE_TYPES = ['heart', 'thumbsup', 'pray', 'ok', 'fire', 'funny'];
+            const NEUTRAL_TYPES  = ['neutral'];
+            const NEGATIVE_TYPES = ['lightbulb', 'frown', 'rage'];
+            const pos = POSITIVE_TYPES.reduce((s, t) => s + (totals[t] || 0), 0);
+            const neu = NEUTRAL_TYPES.reduce((s, t) => s + (totals[t] || 0), 0);
+            const neg = NEGATIVE_TYPES.reduce((s, t) => s + (totals[t] || 0), 0);
+            const total = pos + neu + neg;
+            if (total === 0) {
+                el.innerHTML = '<div class="chart-empty">No reactions yet</div>';
+                return;
+            }
+            const posPct = (pos / total * 100);
+            const negPct = (neg / total * 100);
+            const neuPct = (neu / total * 100);
+            // Determine dominant sentiment
+            let summary;
+            if (posPct >= negPct && posPct >= neuPct) {
+                summary = `<span style="color:#28a745;font-weight:700;">${posPct.toFixed(1)}% Positive</span>`;
+            } else if (negPct >= posPct && negPct >= neuPct) {
+                summary = `<span style="color:#dc3545;font-weight:700;">${negPct.toFixed(1)}% Negative</span>`;
+            } else {
+                summary = `<span style="color:#6c757d;font-weight:700;">${neuPct.toFixed(1)}% Neutral</span>`;
+            }
+            // SVG diverging bar
+            const W = 700, H = 120, barH = 32, cy = 40;
+            const midX = W / 2;
+            const maxSide = Math.max(neg, pos, 1);
+            const scale = (W / 2 - 60) / maxSide;
+            const negW = neg * scale;
+            const posW = pos * scale;
+            const neuW = Math.max(neu * scale * 0.4, 2); // neutral is narrow, centered
+            // Build segments from center outward
+            // Negative bar (extends left from center)
+            const negRect = neg > 0
+                ? `<rect x="${(midX - negW).toFixed(1)}" y="${cy}" width="${negW.toFixed(1)}" height="${barH}" fill="#dc3545" rx="3" opacity="0.85"/>`
+                : '';
+            // Positive bar (extends right from center)
+            const posRect = pos > 0
+                ? `<rect x="${midX.toFixed(1)}" y="${cy}" width="${posW.toFixed(1)}" height="${barH}" fill="#28a745" rx="3" opacity="0.85"/>`
+                : '';
+            // Neutral bar (centered)
+            const neuRect = neu > 0
+                ? `<rect x="${(midX - neuW / 2).toFixed(1)}" y="${cy}" width="${neuW.toFixed(1)}" height="${barH}" fill="#6c757d" rx="3" opacity="0.85"/>`
+                : '';
+            // Center line
+            const centerLine = `<line x1="${midX}" x2="${midX}" y1="${cy - 6}" y2="${cy + barH + 6}" stroke="#ccc" stroke-width="1" stroke-dasharray="3,3"/>`;
+            // Labels
+            const labelY = cy + barH + 20;
+            const labels = `
+                <text x="${(midX - negW / 2).toFixed(1)}" y="${labelY}" text-anchor="middle" font-size="11" fill="#dc3545" font-weight="600">${neg > 0 ? fmt(neg) + ' (' + negPct.toFixed(1) + '%)' : ''}</text>
+                <text x="${midX}" y="${labelY}" text-anchor="middle" font-size="11" fill="#6c757d" font-weight="600">${neu > 0 ? fmt(neu) + ' (' + neuPct.toFixed(1) + '%)' : ''}</text>
+                <text x="${(midX + posW / 2).toFixed(1)}" y="${labelY}" text-anchor="middle" font-size="11" fill="#28a745" font-weight="600">${pos > 0 ? fmt(pos) + ' (' + posPct.toFixed(1) + '%)' : ''}</text>
+            `;
+            // Category labels
+            const catY = cy - 10;
+            const catLabels = `
+                <text x="${(midX - negW / 2).toFixed(1)}" y="${catY}" text-anchor="middle" font-size="10" fill="#999">Negative</text>
+                <text x="${midX}" y="${catY}" text-anchor="middle" font-size="10" fill="#999">Neutral</text>
+                <text x="${(midX + posW / 2).toFixed(1)}" y="${catY}" text-anchor="middle" font-size="10" fill="#999">Positive</text>
+            `;
+            const summaryY = cy + barH + 42;
+            el.innerHTML = `
+                <div style="text-align:center;margin-bottom:0.75rem;font-size:1rem;">${summary}</div>
+                <svg viewBox="0 0 ${W} ${H + 20}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;overflow:visible">${centerLine}${negRect}${neuRect}${posRect}${catLabels}${labels}</svg>
+                <div style="text-align:center;margin-top:0.25rem;font-size:0.8rem;color:#999;">${fmt(total)} total reactions</div>
+            `;
+        }
+
         function showTip(ttEl,e,html){if(!ttEl)return;ttEl.innerHTML=html;ttEl.style.display='block';moveTip(ttEl,e);}
         function moveTip(ttEl,e){if(!ttEl)return;const margin=14;let x=e.clientX+margin,y=e.clientY-margin;const tw=ttEl.offsetWidth,th=ttEl.offsetHeight;if(x+tw>window.innerWidth-8)x=e.clientX-tw-margin;if(y+th>window.innerHeight-8)y=e.clientY-th-margin;if(y<4)y=4;ttEl.style.left=x+'px';ttEl.style.top=y+'px';}
         function hideTip(ttEl){if(ttEl)ttEl.style.display='none';}
@@ -902,7 +994,7 @@ VIEWS['post-reactions'] = {
     html: () => `
         <div class="container">
             <div class="section-card" style="margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
-                <div style="font-weight: 600; font-size: 1.1rem;">
+                <div style="font-weight: 600; font-size: 1.1rem; text-align: center;">
                     <span>Total Reactions: <span id="stat-total-all" style="color: var(--primary);">0</span></span>
                     
                 </div>

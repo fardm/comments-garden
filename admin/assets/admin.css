@@ -244,11 +244,10 @@
 
 .reaction-badge {
     display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
-    font-size: 0.85rem;
+    padding: 1rem 1.2rem;
+    border-radius: 10px;
+    font-size: 1.1rem;
     font-weight: 600;
-    background: var(--light);
     border: 1px solid var(--gray);
     color: var(--body-text);
 }
