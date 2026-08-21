@@ -950,11 +950,11 @@ VIEWS['analytics'] = {
 
             el.innerHTML = `
                 <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;overflow:visible">${labels}${bar}</svg>
-                <div style="display:flex;justify-content:space-between;padding:0 2px;margin-top:0.15rem;">
-                    <span style="font-size:0.78rem;color:#dc3545;">Negative: ${fmt(neg)}</span>
-                    <span style="font-size:0.78rem;color:#6c757d;">Neutral: ${fmt(neu)}</span>
-                    <span style="font-size:0.78rem;color:#28a745;">Positive: ${fmt(pos)}</span>
-                    <span style="font-size:0.78rem;color:#999;">Total: ${fmt(total)}</span>
+                <div style="display:flex;justify-content:space-between;padding:0 2px;margin-top:0.15rem; flex-direction: column;">
+                    <span style="font-size:0.78rem;color:#dc3545;">😡Negative: ${fmt(neg)}</span>
+                    <span style="font-size:0.78rem;color:#6c757d;">😐Neutral: ${fmt(neu)}</span>
+                    <span style="font-size:0.78rem;color:#28a745;">☺️Positive: ${fmt(pos)}</span>
+                    <span style="font-size:0.78rem;color:#999;">📊Total: ${fmt(total)}</span>
                 </div>
             `;
         }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'">
+
     <title>Comment System Admin</title>
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="assets/admin.css">
@@ -15,9 +15,13 @@
         <h2 style="margin-bottom: 1.5rem;">Admin Login</h2>
         <div id="login-message"></div>
         <form id="login-form">
+            <div class="form-group" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;" aria-hidden="true">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" autocomplete="username" tabindex="-1" readonly>
+            </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" required>
+                <input type="password" id="password" required autocomplete="current-password">
             </div>
             <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
         </form>
@@ -64,7 +68,7 @@
     </div>
 
     <!-- ── Shared scripts ─────────────────────────────────────────────────── -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="assets/lucide.min.js"></script>
     <script src="assets/admin-common.js"></script>
     <script src="assets/admin-comment-edit.js"></script>
     <script src="assets/admin-app.js"></script>
