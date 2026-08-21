@@ -184,6 +184,8 @@ const handler = async (c: any) => {
       if (await ratelimit.isCommentRateLimited(ip)) return c.json({ error: "Too many comments. Please try again later." }, 429)
       const result = await auth.login(c, body.password, ip, userAgent)
       if (result.error) return c.json(result, 401)
+      // Best-effort cleanup of old rate-limit logs on login
+      ratelimit.cleanupOldLogs().catch(() => {})
       return c.json({ success: true, message: 'Logged in successfully', csrf_token: 'dummy_csrf' })
     }
 
@@ -232,7 +234,7 @@ const handler = async (c: any) => {
       const commentIds = result.results.map((c: any) => c.id).join(',');
       const votesMap = new Map<number, Record<string, any>>();
       if (commentIds) {
-        const { results: votes } = await db.prepare(`SELECT comment_id, reaction_type, COUNT(*) as count FROM votes WHERE comment_id IN (${commentIds}) GROUP BY comment_id, reaction_type`).all();
+        const { results: votes } = await db.prepare(`SELECT comment_id, reaction_type, COUNT(*) as count FROM comment_reactions WHERE comment_id IN (${commentIds}) GROUP BY comment_id, reaction_type`).all();
         for (const v of votes) {
           const cId = v.comment_id as number;
           if (!votesMap.has(cId)) votesMap.set(cId, {});
@@ -305,7 +307,7 @@ const handler = async (c: any) => {
       const commentIdsAll = result.results.map((c: any) => c.id).join(',');
       const votesMapAll = new Map<number, Record<string, any>>();
       if (commentIdsAll) {
-        const { results: votes } = await db.prepare(`SELECT comment_id, reaction_type, COUNT(*) as count FROM votes WHERE comment_id IN (${commentIdsAll}) GROUP BY comment_id, reaction_type`).all();
+        const { results: votes } = await db.prepare(`SELECT comment_id, reaction_type, COUNT(*) as count FROM comment_reactions WHERE comment_id IN (${commentIdsAll}) GROUP BY comment_id, reaction_type`).all();
         for (const v of votes) {
           const cId = v.comment_id as number;
           if (!votesMapAll.has(cId)) votesMapAll.set(cId, {});
@@ -488,7 +490,7 @@ const handler = async (c: any) => {
         result.post_reactions = meta.changes || 0
       }
       if (body.delete_comment_reactions) {
-        const { meta } = await db.prepare('DELETE FROM votes').run()
+        const { meta } = await db.prepare('DELETE FROM comment_reactions').run()
         result.comment_reactions = meta.changes || 0
       }
 

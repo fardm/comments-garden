@@ -129,7 +129,7 @@ export class AdminService {
 
     // Get actual counts for each table
     const postReactionsCount = await this.db.prepare('SELECT COUNT(*) as count FROM post_reactions').first<{count: number}>()
-    const commentReactionsCount = await this.db.prepare('SELECT COUNT(*) as count FROM votes').first<{count: number}>()
+    const commentReactionsCount = await this.db.prepare('SELECT COUNT(*) as count FROM comment_reactions').first<{count: number}>()
 
     return {
       db_size_bytes,

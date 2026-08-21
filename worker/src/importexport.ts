@@ -19,7 +19,7 @@ export class ImportExportService {
     const [comments, postReactions, commentReactions] = await Promise.all([
       this.db.prepare('SELECT * FROM comments ORDER BY id ASC').all(),
       this.db.prepare('SELECT * FROM post_reactions ORDER BY id ASC').all(),
-      this.db.prepare('SELECT * FROM votes ORDER BY id ASC').all(),
+      this.db.prepare('SELECT * FROM comment_reactions ORDER BY id ASC').all(),
     ])
 
     return {
@@ -282,7 +282,7 @@ export class ImportExportService {
         }
         commentReactionStmts.push(
           this.db.prepare(`
-            INSERT INTO votes (comment_id, ip_address, reaction_type, created_at)
+            INSERT INTO comment_reactions (comment_id, ip_address, reaction_type, created_at)
             VALUES (?, ?, ?, ?)
           `).bind(
             mappedCommentId,
@@ -401,7 +401,7 @@ export class ImportExportService {
 
   private async getExistingCommentReactionKeys(): Promise<Set<string>> {
     const { results } = await this.db.prepare(
-      'SELECT comment_id, ip_address, reaction_type FROM votes'
+      'SELECT comment_id, ip_address, reaction_type FROM comment_reactions'
     ).all()
     const set = new Set<string>()
     for (const r of results) {

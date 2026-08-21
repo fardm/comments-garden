@@ -60,9 +60,9 @@ export class CommentService {
     const commentIds = comments.map(c => c.id).join(',');
     const votesMap = new Map<number, Record<string, any>>();
     if (commentIds) {
-      const { results: votes } = await this.db.prepare(`SELECT comment_id, reaction_type, COUNT(*) as count FROM votes WHERE comment_id IN (${commentIds}) GROUP BY comment_id, reaction_type`).all();
+      const { results: votes } = await this.db.prepare(`SELECT comment_id, reaction_type, COUNT(*) as count FROM comment_reactions WHERE comment_id IN (${commentIds}) GROUP BY comment_id, reaction_type`).all();
 
-      const { results: userVotes } = await this.db.prepare(`SELECT comment_id, reaction_type FROM votes WHERE comment_id IN (${commentIds}) AND ip_address = ?`).bind(ip).all();
+      const { results: userVotes } = await this.db.prepare(`SELECT comment_id, reaction_type FROM comment_reactions WHERE comment_id IN (${commentIds}) AND ip_address = ?`).bind(ip).all();
       const userVotesSet = new Set(userVotes.map(v => `${v.comment_id}-${v.reaction_type}`));
 
       for (const v of votes) {

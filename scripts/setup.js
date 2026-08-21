@@ -419,7 +419,7 @@ async function optionReinitializeDatabase() {
   console.log(`Target database: "${dbName}"\n`);
 
   console.log('⚠️  WARNING: This will DROP ALL TABLES and reapply the schema.');
-  console.log('   ALL EXISTING DATA (comments, votes, settings, sessions) WILL BE LOST.\n');
+  console.log('   ALL EXISTING DATA (comments, comment_reactions, settings, sessions) WILL BE LOST.\n');
 
   const confirmation = await prompt('Type RESET to confirm (anything else cancels): ');
   if (confirmation !== 'RESET') {
@@ -433,8 +433,8 @@ async function optionReinitializeDatabase() {
     'DROP TABLE IF EXISTS settings',
     'DROP TABLE IF EXISTS login_attempts',
     'DROP TABLE IF EXISTS sessions',
-    'DROP TABLE IF EXISTS votes',
-    'DROP TABLE IF EXISTS vote_log',
+    'DROP TABLE IF EXISTS comment_reactions',
+    'DROP TABLE IF EXISTS reaction_rate_log',
     'DROP TABLE IF EXISTS post_reactions',
   ];
 

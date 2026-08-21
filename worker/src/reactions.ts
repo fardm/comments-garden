@@ -8,15 +8,15 @@ export class ReactionService {
   async toggleVote(commentId: number, ip: string, reactionType: string) {
     let voted = true;
     try {
-      await this.db.prepare('INSERT INTO votes (comment_id, ip_address, reaction_type) VALUES (?, ?, ?)').bind(commentId, ip, reactionType).run()
+      await this.db.prepare('INSERT INTO comment_reactions (comment_id, ip_address, reaction_type) VALUES (?, ?, ?)').bind(commentId, ip, reactionType).run()
     } catch (e) {
       // SQLite UNIQUE constraint violation
-      await this.db.prepare('DELETE FROM votes WHERE comment_id = ? AND ip_address = ? AND reaction_type = ?').bind(commentId, ip, reactionType).run()
+      await this.db.prepare('DELETE FROM comment_reactions WHERE comment_id = ? AND ip_address = ? AND reaction_type = ?').bind(commentId, ip, reactionType).run()
       voted = false;
     }
 
     // Get updated counts for this comment
-    const { results } = await this.db.prepare('SELECT reaction_type, COUNT(*) as count FROM votes WHERE comment_id = ? GROUP BY reaction_type').bind(commentId).all()
+    const { results } = await this.db.prepare('SELECT reaction_type, COUNT(*) as count FROM comment_reactions WHERE comment_id = ? GROUP BY reaction_type').bind(commentId).all()
     const counts: Record<string, number> = {}
     for (const r of results) {
       counts[r.reaction_type as string] = r.count as number

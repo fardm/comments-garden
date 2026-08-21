@@ -74,8 +74,8 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_session_token ON sessions(token);
 CREATE INDEX IF NOT EXISTS idx_session_expires ON sessions(expires_at);
 
--- Votes table for per-comment emoji reactions
-CREATE TABLE IF NOT EXISTS votes (
+-- Comment reactions table (per-comment emoji reactions)
+CREATE TABLE IF NOT EXISTS comment_reactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     comment_id INTEGER NOT NULL,
     ip_address TEXT NOT NULL,
@@ -86,16 +86,17 @@ CREATE TABLE IF NOT EXISTS votes (
     UNIQUE(comment_id, ip_address, reaction_type, author_role)
 );
 
-CREATE INDEX IF NOT EXISTS idx_votes_comment ON votes(comment_id);
+CREATE INDEX IF NOT EXISTS idx_comment_reactions_comment ON comment_reactions(comment_id);
+CREATE INDEX IF NOT EXISTS idx_comment_reactions_lookup ON comment_reactions(comment_id, reaction_type);
 
--- Vote log for rate limiting
-CREATE TABLE IF NOT EXISTS vote_log (
+-- Rate limiting log for comment/post reactions
+CREATE TABLE IF NOT EXISTS reaction_rate_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ip_address TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_vote_log_ip ON vote_log(ip_address, created_at);
+CREATE INDEX IF NOT EXISTS idx_reaction_rate_log_ip ON reaction_rate_log(ip_address, created_at);
 
 -- Post reactions table for page-level emoji reactions (no comment required)
 CREATE TABLE IF NOT EXISTS post_reactions (
