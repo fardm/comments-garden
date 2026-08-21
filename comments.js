@@ -600,6 +600,11 @@ class CommentSystem {
             const data = await response.json();
 
             if (response.ok) {
+                let avatarUrl = data.admin_avatar_url || '';
+                if (avatarUrl && avatarUrl.startsWith('/')) {
+                    avatarUrl = this.apiUrl.replace(/\/(api|api\.php)$/, '') + avatarUrl;
+                }
+                this.adminAvatarUrl = avatarUrl;
                 this.displayComments(data.comments);
                 const prContainer = document.getElementById('post-reactions-container');
                 if (prContainer && data.post_reactions) {
@@ -673,12 +678,30 @@ class CommentSystem {
 
         const reactionCounts = this.getCommentReactionCounts(comment);
         const reactions = this.getReactionDefinitions();
+
+        // Admin reactions
+        const adminReactions = comment.admin_reactions || [];
         const usedReactions = reactions.filter(r => {
             const count = typeof reactionCounts[r.type] === 'object' ? reactionCounts[r.type].count : (reactionCounts[r.type] || 0);
-            return count > 0;
+            return count > 0 || adminReactions.includes(r.type);
         });
         const hasAnyReactions = usedReactions.length > 0;
-        const reactionsHtml = usedReactions.map(r => {
+
+        let reactionsHtml = '';
+
+        // Render admin reactions first
+        reactionsHtml += reactions.filter(r => adminReactions.includes(r.type)).map(r => {
+            return `<span class="admin-reaction-badge" title="${r.label}">
+                        <img src="${this.adminAvatarUrl}" class="admin-reaction-avatar" alt="Admin" onerror="this.style.display='none'">
+                        <span class="reaction-emoji">${r.emoji}</span>
+                    </span>`;
+        }).join('');
+
+        // Render user reactions
+        reactionsHtml += reactions.filter(r => {
+            const count = typeof reactionCounts[r.type] === 'object' ? reactionCounts[r.type].count : (reactionCounts[r.type] || 0);
+            return count > 0;
+        }).map(r => {
             const count = typeof reactionCounts[r.type] === 'object' ? reactionCounts[r.type].count : (reactionCounts[r.type] || 0);
             const serverVoted = typeof reactionCounts[r.type] === 'object' && reactionCounts[r.type].voted;
             const voted = serverVoted || this.hasVoted(comment.id, r.type);

@@ -692,3 +692,22 @@
   font-size: 0.9rem;
   color: #e74c3c;
 }
+.admin-reaction-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background-color: var(--gray, #f0f0f0);
+    border: 1px solid var(--lightgray, #ddd);
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 0.85rem;
+    margin-right: 4px;
+    cursor: default;
+}
+
+.admin-reaction-avatar {
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    object-fit: cover;
+}

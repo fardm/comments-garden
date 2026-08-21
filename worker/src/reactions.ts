@@ -25,6 +25,32 @@ export class ReactionService {
     return { success: true, voted, counts }
   }
 
+  async toggleAdminVote(commentId: number, ip: string, reactionType: string) {
+    let voted = true;
+    try {
+      await this.db.prepare('INSERT INTO comment_reactions (comment_id, ip_address, reaction_type, author_role) VALUES (?, ?, ?, ?)').bind(commentId, ip, reactionType, 'admin').run()
+    } catch (e) {
+      // SQLite UNIQUE constraint violation
+      await this.db.prepare('DELETE FROM comment_reactions WHERE comment_id = ? AND ip_address = ? AND reaction_type = ? AND author_role = ?').bind(commentId, ip, reactionType, 'admin').run()
+      voted = false;
+    }
+
+    // Get updated counts for this comment
+    const { results } = await this.db.prepare('SELECT reaction_type, author_role, COUNT(*) as count FROM comment_reactions WHERE comment_id = ? GROUP BY reaction_type, author_role').bind(commentId).all()
+    const counts: Record<string, number> = {}
+    const adminReactions: string[] = []
+
+    for (const r of results) {
+      if (r.author_role === 'admin') {
+        adminReactions.push(r.reaction_type as string)
+      } else {
+        counts[r.reaction_type as string] = r.count as number
+      }
+    }
+
+    return { success: true, voted, counts, admin_reactions: adminReactions }
+  }
+
   async togglePostReaction(url: string, ip: string, reactionType: string) {
     let voted = true;
     try {

@@ -378,6 +378,7 @@ VIEWS['comments'] = {
         // View mode state
         let viewMode = 'tree';
         let lastLoadedComments = [];
+        let adminAvatarUrl = '';
 
         // Reply state
         let replyingToId = null;
@@ -414,6 +415,43 @@ VIEWS['comments'] = {
                 }
             });
             return roots;
+        }
+
+
+        async function adminToggleVote(commentId, reactionType) {
+            await AdminAuth.ensureCsrfToken();
+            try {
+                const response = await fetch(`${API_URL}?action=admin_vote`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        comment_id: commentId,
+                        reaction_type: reactionType,
+                        csrf_token: AdminAuth.getCsrfToken()
+                    })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Close picker
+                    const wrap = document.getElementById(`acc-reaction-picker-wrap-${commentId}`);
+                    if (wrap) wrap.classList.remove('open');
+
+                    // Reload comments to reflect state
+                    loadComments();
+                }
+            } catch (e) {
+                console.error("Admin reaction failed", e);
+            }
+        }
+
+        function toggleAdminReactionPicker(commentId) {
+            const wrap = document.getElementById(`acc-reaction-picker-wrap-${commentId}`);
+            if (!wrap) return;
+            const isOpen = wrap.classList.contains('open');
+            document.querySelectorAll('.acc-reaction-picker-wrap.open').forEach(el => el.classList.remove('open'));
+            if (!isOpen) wrap.classList.add('open');
         }
 
         async function loadCounts() {
@@ -470,6 +508,7 @@ VIEWS['comments'] = {
                 if (r.ok) {
                     totalCount = data.pagination.total;
                     lastLoadedComments = data.comments || [];
+                    adminAvatarUrl = data.admin_avatar_url || '';
                     displayComments(lastLoadedComments);
                     renderPagination();
                 } else {
@@ -506,11 +545,20 @@ VIEWS['comments'] = {
                 const name = comment.author_name || 'A';
                 const escapedPageUrl = escapeHtml(comment.page_url || '').replace(/'/g, "\\'");
 
-                // Build reaction pills (same as frontend)
-                const reactionPills = reactionDefs
+                const adminReactions = comment.admin_reactions || [];
+                const gravatarHtml = `<img src="${adminAvatarUrl}" alt="Admin" style="border-radius: 50%; width: 16px; height: 16px; margin-right: 4px;">`;
+
+                const adminReactionPills = reactionDefs
+                    .filter(x => adminReactions.includes(x.type))
+                    .map(x => `<span class="acc-reaction-pill acc-admin-reaction-pill" style="cursor: pointer;" onclick="adminToggleVote(${comment.id}, '${x.type}')" title="Click to remove">${gravatarHtml}<span class="rp-emoji">${x.emoji}</span></span>`)
+                    .join('');
+
+                const userReactionPills = reactionDefs
                     .filter(x => (votes[x.type] || 0) > 0)
                     .map(x => `<span class="acc-reaction-pill"><span class="rp-emoji">${x.emoji}</span><span class="rp-count">${votes[x.type]}</span></span>`)
                     .join('');
+
+                const reactionPills = userReactionPills + adminReactionPills;
 
                 // Build dropdown menu items
                 const menuItems = [];
@@ -572,7 +620,15 @@ VIEWS['comments'] = {
                     </div>
                     <div class="acc-content" dir="auto" id="comment-content-${comment.id}">${escapeHtml(comment.content)}</div>
                     ${reactionPills ? `<div class="acc-reactions">${reactionPills}</div>` : ''}
-                    <div class="acc-actions-row">
+                    <div class="acc-actions-row" style="display: flex; gap: 0.5rem; align-items: center;">
+                        <div class="acc-reaction-picker-wrap" id="acc-reaction-picker-wrap-${comment.id}" style="position: relative;">
+                            <button type="button" class="btn-reaction-add" onclick="toggleAdminReactionPicker(${comment.id})" title="Add Reaction">
+                                <svg xmlns="http://www.w3.org/2000/svg" height="14" viewBox="0 0 16 16" width="14" class="octicon octicon-smiley social-button-emoji"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm3.82 1.636a.75.75 0 0 1 1.038.175l.007.009c.103.118.22.222.35.31.264.178.683.37 1.285.37.602 0 1.02-.192 1.285-.371.13-.088.247-.192.35-.31l.007-.008a.75.75 0 0 1 1.222.87l-.022-.015c.02.013.021.015.021.015v.001l-.001.002-.002.003-.005.007-.014.019a2.066 2.066 0 0 1-.184.213c-.16.166-.338.316-.53.445-.63.418-1.37.638-2.127.629-.946 0-1.652-.308-2.126-.63a3.331 3.331 0 0 1-.715-.657l-.014-.02-.005-.006-.002-.003v-.002h-.001l.613-.432-.614.43a.75.75 0 0 1 .183-1.044ZM12 7a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM5 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm5.25 2.25.592.416a97.71 97.71 0 0 0-.592-.416Z" fill="#9198A1"></path></svg>
+                            </button>
+                            <div class="cs-reaction-picker" style="position: absolute; bottom: 100%; left: 0; display: none; background: var(--on-background); border: 1px solid var(--gray); border-radius: 6px; padding: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100; flex-wrap: wrap; width: max-content; max-width: 200px; gap: 0.25rem;">
+                                ${reactionDefs.map(r => `<button type="button" class="reaction-picker-emoji" style="border: none; background: transparent; cursor: pointer; font-size: 1.2rem; padding: 0.25rem; border-radius: 4px;" onclick="adminToggleVote(${comment.id}, '${r.type}')" title="${r.emoji}">${r.emoji}</button>`).join('')}
+                            </div>
+                        </div>
                         <button class="acc-reply-btn" onclick="showReplyForm(${comment.id}, '${escapedPageUrl}')">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
                             Reply

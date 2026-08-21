@@ -275,19 +275,20 @@ export class ImportExportService {
           skipped_comment_reactions++
           continue
         }
-        const key = `${mappedCommentId}|${r.ip_address}|${r.reaction_type}`
+        const key = `${mappedCommentId}|${r.ip_address}|${r.reaction_type}|${r.author_role || 'user'}`
         if (existingCR.has(key)) {
           skipped_comment_reactions++
           continue
         }
         commentReactionStmts.push(
           this.db.prepare(`
-            INSERT INTO comment_reactions (comment_id, ip_address, reaction_type, created_at)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO comment_reactions (comment_id, ip_address, reaction_type, author_role, created_at)
+            VALUES (?, ?, ?, ?, ?)
           `).bind(
             mappedCommentId,
             r.ip_address,
             r.reaction_type || 'heart',
+            r.author_role || 'user',
             r.created_at || new Date().toISOString(),
           )
         )
@@ -401,11 +402,11 @@ export class ImportExportService {
 
   private async getExistingCommentReactionKeys(): Promise<Set<string>> {
     const { results } = await this.db.prepare(
-      'SELECT comment_id, ip_address, reaction_type FROM comment_reactions'
+      'SELECT comment_id, ip_address, reaction_type, author_role FROM comment_reactions'
     ).all()
     const set = new Set<string>()
     for (const r of results) {
-      set.add(`${r.comment_id}|${r.ip_address}|${r.reaction_type}`)
+      set.add(`${r.comment_id}|${r.ip_address}|${r.reaction_type}|${r.author_role || 'user'}`)
     }
     return set
   }

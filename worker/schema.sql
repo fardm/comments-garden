@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS comment_reactions (
     comment_id INTEGER NOT NULL,
     ip_address TEXT NOT NULL,
     reaction_type TEXT NOT NULL DEFAULT 'heart',
-    author_role TEXT DEFAULT 'user',
+    author_role TEXT DEFAULT 'user' CHECK(author_role IN ('user', 'admin')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
     UNIQUE(comment_id, ip_address, reaction_type, author_role)

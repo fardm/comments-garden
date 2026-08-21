@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { AuthService } from './auth'
-import { CommentService } from './comments'
+import { CommentService, getGravatarUrl } from './comments'
 import { ReactionService } from './reactions'
 import { AdminService } from './admin'
 import { RateLimitService } from "./ratelimit"
@@ -52,6 +52,17 @@ const handler = async (c: any) => {
 
   try {
 
+    // Helper: generate admin avatar URL
+    const getAdminAvatar = async (): Promise<string> => {
+      const config = await settings.getAllSettings();
+      const adminEmail = (config.admin_email || '').trim().toLowerCase();
+      if (!adminEmail) {
+        // Fallback data URI for "A"
+        return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'><rect width='80' height='80' fill='%236c757d'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='40' font-family='sans-serif'>A</text></svg>";
+      }
+      return await getGravatarUrl(adminEmail, 32);
+    }
+
     // Helper: parse enabled reactions from settings (all enabled if unset)
     const getEnabledReactions = async (): Promise<string[]> => {
       const ALL_REACTIONS = ['thumbsup','lightbulb','pray','ok','fire','heart','frown','rage','funny','neutral']
@@ -88,7 +99,8 @@ const handler = async (c: any) => {
 
       // Also fetch and attach post_reactions to the result
       const postReactionsSummary = await reactions.getPostReactionsSummary(url, ip)
-      return c.json({ ...result, post_reactions: postReactionsSummary })
+      const admin_avatar_url = await getAdminAvatar();
+      return c.json({ ...result, post_reactions: postReactionsSummary, admin_avatar_url })
     }
 
     if (method === 'GET' && action === 'recent') {
@@ -221,6 +233,22 @@ const handler = async (c: any) => {
       return c.json(result)
     }
 
+    if (method === 'POST' && action === 'admin_vote') {
+      if (!(await auth.isAdmin(c))) {
+        return c.json({ error: 'Unauthorized' }, 401)
+      }
+      const body = await c.req.json()
+      // Admin vote has no rate limiting
+
+      const enabledReactions = await getEnabledReactions()
+      if (!enabledReactions.includes(body.reaction_type)) {
+        return c.json({ error: 'Reaction type is not enabled' }, 400)
+      }
+
+      const result = await reactions.toggleAdminVote(body.comment_id, ip, body.reaction_type)
+      return c.json(result)
+    }
+
     if (method === 'POST' && action === 'admin_post') {
       const body = await c.req.json()
       const result = await comments.createAdminComment(body, ip, userAgent)
@@ -306,18 +334,25 @@ const handler = async (c: any) => {
 
       const commentIdsAll = result.results.map((c: any) => c.id).join(',');
       const votesMapAll = new Map<number, Record<string, any>>();
+      const adminReactionsMap = new Map<number, string[]>();
       if (commentIdsAll) {
-        const { results: votes } = await db.prepare(`SELECT comment_id, reaction_type, COUNT(*) as count FROM comment_reactions WHERE comment_id IN (${commentIdsAll}) GROUP BY comment_id, reaction_type`).all();
+        const { results: votes } = await db.prepare(`SELECT comment_id, reaction_type, author_role, COUNT(*) as count FROM comment_reactions WHERE comment_id IN (${commentIdsAll}) GROUP BY comment_id, reaction_type, author_role`).all();
         for (const v of votes) {
           const cId = v.comment_id as number;
-          if (!votesMapAll.has(cId)) votesMapAll.set(cId, {});
           const rType = v.reaction_type as string;
-          votesMapAll.get(cId)![rType] = v.count as number;
+          if (v.author_role === 'admin') {
+            if (!adminReactionsMap.has(cId)) adminReactionsMap.set(cId, []);
+            adminReactionsMap.get(cId)!.push(rType);
+          } else {
+            if (!votesMapAll.has(cId)) votesMapAll.set(cId, {});
+            votesMapAll.get(cId)![rType] = v.count as number;
+          }
         }
       }
 
       for (const comment of result.results) {
         comment.votes_by_reaction_type = votesMapAll.get(comment.id as number) || {};
+        comment.admin_reactions = adminReactionsMap.get(comment.id as number) || [];
       }
 
       // Calculate aggregates
@@ -328,10 +363,12 @@ const handler = async (c: any) => {
         aggregates.all += row.count as number
       }
 
+      const admin_avatar_url = await getAdminAvatar();
       return c.json({
         comments: result.results,
         pagination: { total: totalCount },
-        aggregates
+        aggregates,
+        admin_avatar_url
       })
     }
 
