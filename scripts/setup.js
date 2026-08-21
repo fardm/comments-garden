@@ -273,9 +273,14 @@ async function optionInitialSetup() {
     password = await prompt('Enter a new admin password: ');
   }
 
-  const hash = crypto.createHash('sha256').update(password).digest('hex');
+  // PBKDF2-HMAC-SHA-256 hashing
+  const iterations = 100000;
+  const salt = crypto.randomBytes(16);
+  const derived = crypto.pbkdf2Sync(password, salt, iterations, 32, 'sha256');
+  const storedHash = `${iterations}:${salt.toString('base64')}:${derived.toString('base64')}`;
   const tmpSqlPath = path.join(WORKER_DIR, 'tmp.sql');
-  fs.writeFileSync(tmpSqlPath, `UPDATE settings SET value = '${hash}' WHERE key = 'admin_password_hash';`);
+  // Escape single quotes in the base64 hash to prevent SQL injection
+  fs.writeFileSync(tmpSqlPath, `UPDATE settings SET value = '${storedHash.replace(/'/g, "''")}' WHERE key = 'admin_password_hash';`);
 
   console.log('\nSaving admin password to local database...');
   runCommand(`npx wrangler d1 execute "${dbName}" --local --file="tmp.sql"`);
@@ -287,7 +292,7 @@ async function optionInitialSetup() {
     });
   } catch (e) {
     console.log('Could not update remote database right now. If you deploy, run this command manually:');
-    console.log(`cd worker && npx wrangler d1 execute "${dbName}" --remote --command="UPDATE settings SET value='${hash}' WHERE key='admin_password_hash';"`);
+    console.log(`cd worker && npx wrangler d1 execute "${dbName}" --remote --file="tmp.sql"`);
   }
 
   try { fs.unlinkSync(tmpSqlPath); } catch (_) {}
@@ -313,9 +318,13 @@ async function optionChangePassword() {
     password = await prompt('Enter a new admin password: ');
   }
 
-  const hash = crypto.createHash('sha256').update(password).digest('hex');
+  // PBKDF2-HMAC-SHA-256 hashing
+  const iterations = 100000;
+  const salt = crypto.randomBytes(16);
+  const derived = crypto.pbkdf2Sync(password, salt, iterations, 32, 'sha256');
+  const storedHash = `${iterations}:${salt.toString('base64')}:${derived.toString('base64')}`;
   const tmpSqlPath = path.join(WORKER_DIR, 'tmp.sql');
-  fs.writeFileSync(tmpSqlPath, `UPDATE settings SET value = '${hash}' WHERE key = 'admin_password_hash';`);
+  fs.writeFileSync(tmpSqlPath, `UPDATE settings SET value = '${storedHash.replace(/'/g, "''")}' WHERE key = 'admin_password_hash';`);
 
   console.log('\nSaving to local database...');
   runCommand(`npx wrangler d1 execute "${dbName}" --local --file="tmp.sql"`);
@@ -327,7 +336,7 @@ async function optionChangePassword() {
     });
   } catch (e) {
     console.log('Could not update remote database. Run manually:');
-    console.log(`cd worker && npx wrangler d1 execute "${dbName}" --remote --command="UPDATE settings SET value='${hash}' WHERE key='admin_password_hash';"`);
+    console.log(`cd worker && npx wrangler d1 execute "${dbName}" --remote --file="tmp.sql"`);
   }
 
   try { fs.unlinkSync(tmpSqlPath); } catch (_) {}

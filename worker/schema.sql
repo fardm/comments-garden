@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 -- Insert default settings
+-- admin_password_hash stores PBKDF2-HMAC-SHA-256 hash in format: iterations:base64(salt):base64(hash)
+-- A blank value means no password is set yet.
 INSERT OR IGNORE INTO settings (key, value) VALUES
     ('admin_password_hash', ''),
     ('require_moderation', 'true'),

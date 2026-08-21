@@ -12,7 +12,6 @@ import { TelegramService } from './telegram'
 type Bindings = {
   DB: D1Database
   ALLOWED_ORIGINS: string
-  ADMIN_PASSWORD_HASH?: string
   TELEGRAM_BOT_TOKEN?: string
 }
 
@@ -174,6 +173,15 @@ const handler = async (c: any) => {
     // Check admin
     if (!(await auth.isAdmin(c))) {
       return c.json({ error: 'Unauthorized' }, 401)
+    }
+
+    if (method === 'POST' && action === 'set_password') {
+      const body = await c.req.json()
+      if (!body.password || typeof body.password !== 'string' || body.password.length < 4) {
+        return c.json({ error: 'Password must be at least 4 characters' }, 400)
+      }
+      await auth.setPassword(body.password)
+      return c.json({ success: true })
     }
 
     if (method === 'GET' && action === 'post_reactions_latest') {

@@ -16,12 +16,14 @@ export class SettingsService {
 
   async saveSettings(settings: Record<string, any>) {
     // Cloudflare D1 batching
+    // These settings must only be written through AuthService methods
+    const protectedKeys = new Set(['admin_password_hash', 'admin_token'])
+
     const stmts = []
     for (const [key, value] of Object.entries(settings)) {
-      if (key !== 'admin_token') {
-        const val = typeof value === 'object' ? JSON.stringify(value) : String(value)
-        stmts.push(this.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').bind(key, val))
-      }
+      if (protectedKeys.has(key)) continue
+      const val = typeof value === 'object' ? JSON.stringify(value) : String(value)
+      stmts.push(this.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').bind(key, val))
     }
 
     if (stmts.length > 0) {
