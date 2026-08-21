@@ -4,8 +4,8 @@ compatibility_date = "2024-03-20"
 
 [[d1_databases]]
 binding = "DB"
-database_name = ""
-database_id = ""
+database_name = "comment-garden-db"
+database_id = "f0903cdf-0e43-425c-a338-88b02cd867ff"
 
 [assets]
 directory = "./public"
