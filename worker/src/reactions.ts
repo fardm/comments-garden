@@ -86,9 +86,11 @@ export class ReactionService {
     return { pages, total }
   }
 
-  async getLatestPostReactions(limit: number) {
-    const { results } = await this.db.prepare('SELECT * FROM post_reactions ORDER BY created_at DESC LIMIT ?').bind(limit).all()
-    return { reactions: results, total: results.length }
+  async getLatestPostReactions(limit: number, offset: number = 0) {
+    const countRow = await this.db.prepare('SELECT COUNT(*) as count FROM post_reactions').first<{ count: number }>()
+    const total = countRow?.count ?? 0
+    const { results } = await this.db.prepare('SELECT * FROM post_reactions ORDER BY created_at DESC LIMIT ? OFFSET ?').bind(limit, offset).all()
+    return { reactions: results, total }
   }
 
   async deleteReaction(id: number) {

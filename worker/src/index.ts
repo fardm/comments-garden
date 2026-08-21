@@ -185,8 +185,9 @@ const handler = async (c: any) => {
     }
 
     if (method === 'GET' && action === 'post_reactions_latest') {
-      const limit = parseInt(c.req.query('limit') || '10')
-      const result = await reactions.getLatestPostReactions(limit)
+      const limit = parseInt(c.req.query('limit') || '20')
+      const offset = parseInt(c.req.query('offset') || '0')
+      const result = await reactions.getLatestPostReactions(limit, offset)
       return c.json(result)
     }
 
