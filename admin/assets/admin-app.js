@@ -25,7 +25,6 @@ const NAV_ITEMS = [
     { key: 'settings',       label: 'Settings',       icon: 'settings', isParent: true, children: [
         { key: 'settings-general',       label: 'General' },
         { key: 'settings-reactions',     label: 'Reactions' },
-        { key: 'settings-configuration', label: 'Configuration' },
         { key: 'settings-database',      label: 'Database' },
         { key: 'settings-notifications', label: 'Notifications' },
         { key: 'settings-import-export', label: 'Import & Export' }
@@ -256,7 +255,6 @@ VIEWS['comments'] = {
 
         .admin-comment-card{background:var(--on-background);border:1px solid var(--lightgray);border-radius:8px;padding:1.25rem 1.5rem;transition:box-shadow .2s;}
         .admin-comment-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.06);}
-        .admin-comment-card.is-deleted{opacity:.55;}
         .admin-comment-card.is-admin{border-left:3px solid var(--primary);}
 
         .acc-header{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:.65rem;}
@@ -353,8 +351,8 @@ VIEWS['comments'] = {
                         <option value="asc">Oldest</option>
                     </select>
                     <select id="c-view" class="acc-view-select" onchange="switchView(this.value)">
-                        <option value="timeline">Timeline</option>
                         <option value="tree">Tree</option>
+                        <option value="timeline">Timeline</option>
                     </select>
                 </div>
                 <div class="comments-list" id="comments-list"><p class="no-comments">Loading…</p></div>
@@ -378,7 +376,7 @@ VIEWS['comments'] = {
         ];
 
         // View mode state
-        let viewMode = 'timeline';
+        let viewMode = 'tree';
         let lastLoadedComments = [];
 
         // Reply state
@@ -570,10 +568,7 @@ VIEWS['comments'] = {
                             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                             ${escapeHtml(comment.ip_address || 'N/A')}
                         </span>
-                        ${comment.parent_id ? `<span class="acc-meta-item">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-                            Reply to #${comment.parent_id}
-                        </span>` : ''}
+
                     </div>
                     <div class="acc-content" dir="auto" id="comment-content-${comment.id}">${escapeHtml(comment.content)}</div>
                     ${reactionPills ? `<div class="acc-reactions">${reactionPills}</div>` : ''}
@@ -1276,7 +1271,7 @@ VIEWS['settings-general'] = {
         .setting-label { flex:1 1 200px; }
         .setting-label strong { color:var(--body-text); display:block; font-size:.95rem; }
         .setting-label span { font-size:.82rem; color:var(--body-text); opacity:.8; }
-        .themed-control { background-color:transparent; color:var(--body-text); border:1px solid var(--gray,#ddd); border-radius:4px; padding:.5rem .75rem; font-size:.95rem; }
+        .themed-control { background-color:transparent; color:var(--body-text); border:1px solid var(--gray,#ddd); border-radius:4px; padding:.5rem .75rem; font-size:.95rem; width:100%; max-width:300px; }
         select.themed-control option { background-color:var(--on-background,#fff); color:var(--body-text,#333); }
         .toggle-switch { position:relative; display:inline-block; width:46px; height:26px; flex-shrink:0; }
         .toggle-switch input { opacity:0; width:0; height:0; }
@@ -1288,8 +1283,9 @@ VIEWS['settings-general'] = {
     html: () => `
         <div class="container">
             <h2 style="margin-bottom: 1.5rem;">General Settings</h2>
-            <div class="util-card">
-                <div class="util-card-header"><span class="icon">⚙️</span><h2>General</h2></div>
+
+            <div class="util-card" style="margin-bottom:1.5rem;">
+                <div class="util-card-header"><span class="icon">💬</span><h2>Comments &amp; Moderation</h2></div>
                 <div class="util-card-body">
                     <div id="settings-message"></div>
                     <div class="setting-row">
@@ -1298,55 +1294,176 @@ VIEWS['settings-general'] = {
                     </div>
                     <div class="setting-row">
                         <div class="setting-label"><strong>Comment Sort Order</strong><span>Default order for top-level comments on the site</span></div>
-                        <select id="setting-comment-sort-order" class="themed-control" style="min-width:180px;">
+                        <select id="setting-comment-sort-order" class="themed-control">
                             <option value="asc">Oldest first (ASC)</option>
                             <option value="desc">Newest first (DESC)</option>
                         </select>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label"><strong>Frontend Language</strong><span>Language for the comment widget interface on the website</span></div>
+                        <select id="setting-language" class="themed-control">
+                            <option value="en">English</option>
+                            <option value="fa">فارسی (Persian)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="util-card" style="margin-bottom:1.5rem;">
+                <div class="util-card-header"><span class="icon">🌐</span><h2>System &amp; Localization</h2></div>
+                <div class="util-card-body">
+                    <div class="setting-row">
+                        <div class="setting-label"><strong>Timezone</strong><span>Timezone used for comment timestamps and date/time display</span></div>
+                        <select id="setting-timezone" class="themed-control">
+                            <option value="UTC">UTC</option>
+                            <option value="America/New_York">America/New_York (Eastern Time)</option>
+                            <option value="America/Chicago">America/Chicago (Central Time)</option>
+                            <option value="America/Denver">America/Denver (Mountain Time)</option>
+                            <option value="America/Los_Angeles">America/Los_Angeles (Pacific Time)</option>
+                            <option value="Europe/London">Europe/London (GMT)</option>
+                            <option value="Europe/Paris">Europe/Paris (Central European)</option>
+                            <option value="Europe/Berlin">Europe/Berlin (Central European)</option>
+                            <option value="Asia/Tehran">Asia/Tehran (Iran)</option>
+                            <option value="Asia/Dubai">Asia/Dubai (Gulf)</option>
+                            <option value="Asia/Tokyo">Asia/Tokyo (Japan)</option>
+                            <option value="Asia/Shanghai">Asia/Shanghai (China)</option>
+                            <option value="Australia/Sydney">Australia/Sydney (Australian Eastern)</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label"><strong>Calendar System</strong><span>Calendar for the admin panel date display</span></div>
+                        <select id="setting-calendar" class="themed-control">
+                            <option value="gregorian">Gregorian</option>
+                            <option value="persian">Solar Hijri (Jalali / شمسی)</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label"><strong>Allowed Origins (CORS)</strong><span>Comma-separated list of domains allowed to embed the comments widget</span></div>
+                        <input type="text" id="setting-allowed-origins" class="themed-control" placeholder="https://example.com">
+                    </div>
+                </div>
+            </div>
+
+            <div class="util-card" style="margin-bottom:1.5rem;">
+                <div class="util-card-header"><span class="icon">👤</span><h2>Admin Profile</h2></div>
+                <div class="util-card-body">
+                    <div class="setting-row">
+                        <div class="setting-label"><strong>Admin Name</strong><span>Used to pre-fill the reply form</span></div>
+                        <input type="text" id="setting-admin-name" class="themed-control" placeholder="Your Name">
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label"><strong>Admin Email</strong><span>Used to pre-fill the reply form</span></div>
+                        <input type="email" id="setting-admin-email" class="themed-control" placeholder="your@email.com">
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label"><strong>Admin Website</strong><span>Used to pre-fill the reply form (optional)</span></div>
+                        <input type="url" id="setting-admin-url" class="themed-control" placeholder="https://yourwebsite.com">
                     </div>
                 </div>
             </div>
         </div>
     `,
     init({ hoistToWindow }) {
+        // All setting element IDs that trigger auto-save on change
+        const autoSaveIds = [
+            'setting-require-moderation', 'setting-comment-sort-order', 'setting-language',
+            'setting-timezone', 'setting-calendar', 'setting-allowed-origins',
+            'setting-admin-name', 'setting-admin-email', 'setting-admin-url'
+        ];
+
         async function loadSettings() {
+            const msgEl = document.getElementById('settings-message');
             try {
-                const r = await fetch(`${API_URL}?action=get_settings`, { credentials: 'include' });
-                const d = await r.json();
-                if (!r.ok) return;
-                const s = d.settings;
-                document.getElementById('setting-require-moderation').checked  = (s.require_moderation  === 'true');
-                document.getElementById('setting-comment-sort-order').value     = s.comment_sort_order === 'desc' ? 'desc' : 'asc';
-            } catch (e) { console.error('Settings load failed', e); }
+                // Load settings (moderation, sort, admin profile)
+                const sr = await fetch(`${API_URL}?action=get_settings`, { credentials: 'include' });
+                const sd = await sr.json();
+                if (sr.ok && sd.settings) {
+                    const s = sd.settings;
+                    document.getElementById('setting-require-moderation').checked = (s.require_moderation === 'true');
+                    document.getElementById('setting-comment-sort-order').value = s.comment_sort_order === 'desc' ? 'desc' : 'asc';
+                    document.getElementById('setting-admin-name').value = s.admin_name || '';
+                    document.getElementById('setting-admin-email').value = s.admin_email || '';
+                    document.getElementById('setting-admin-url').value = s.admin_url || '';
+                }
+                // Load system config (timezone, calendar, origins, language)
+                const cr = await fetch(`${API_URL}?action=get_config`, { credentials: 'include' });
+                const cd = await cr.json();
+                if (cr.ok) {
+                    document.getElementById('setting-timezone').value = cd.timezone || 'UTC';
+                    document.getElementById('setting-calendar').value = cd.app_calendar || 'gregorian';
+                    document.getElementById('setting-language').value = cd.app_language || 'en';
+                    document.getElementById('setting-allowed-origins').value = Array.isArray(cd.allowed_origins) ? cd.allowed_origins.join(', ') : '';
+                }
+            } catch (e) {
+                console.error('Settings load failed', e);
+            }
         }
 
-        ['setting-require-moderation','setting-comment-sort-order'].forEach(id => {
+        autoSaveIds.forEach(id => {
             document.getElementById(id)?.addEventListener('change', saveSettings);
         });
 
         async function saveSettings() {
             const msgEl = document.getElementById('settings-message');
-            await AdminAuth.ensureCsrfToken();
             try {
-                // Fetch current settings first to preserve others
-                const g = await fetch(`${API_URL}?action=get_settings`, { credentials: 'include' });
-                const current = (await g.json()).settings || {};
+                await AdminAuth.ensureCsrfToken();
 
-                const payload = {
-                    csrf_token:           AdminAuth.getCsrfToken(),
-                    require_moderation:   document.getElementById('setting-require-moderation').checked   ? 'true' : 'false',
-                    comment_sort_order:   document.getElementById('setting-comment-sort-order').value,
+                // Read all values
+                const requireModeration = document.getElementById('setting-require-moderation').checked ? 'true' : 'false';
+                const commentSortOrder = document.getElementById('setting-comment-sort-order').value;
+                const adminName = document.getElementById('setting-admin-name').value.trim();
+                const adminEmail = document.getElementById('setting-admin-email').value.trim();
+                const adminUrl = document.getElementById('setting-admin-url').value.trim();
+                const timezone = document.getElementById('setting-timezone').value;
+                const calendar = document.getElementById('setting-calendar').value;
+                const language = document.getElementById('setting-language').value;
+                const allowedOrigins = document.getElementById('setting-allowed-origins').value.split(',').map(s => s.trim()).filter(s => s);
+
+                // Save settings (requires get_settings to preserve existing keys)
+                const sr = await fetch(`${API_URL}?action=get_settings`, { credentials: 'include' });
+                const currentSettings = (await sr.json()).settings || {};
+
+                const settingsPayload = {
+                    csrf_token: AdminAuth.getCsrfToken(),
+                    require_moderation: requireModeration,
+                    comment_sort_order: commentSortOrder,
+                    admin_name: adminName,
+                    admin_email: adminEmail,
+                    admin_url: adminUrl,
+                    // Preserve existing settings not shown on this page
+                    telegram_enabled: currentSettings.telegram_enabled || 'false',
+                    telegram_chat_id: currentSettings.telegram_chat_id || '',
+                    max_comment_length: currentSettings.max_comment_length || '5000',
+                    allow_guest_comments: currentSettings.allow_guest_comments || 'true'
                 };
 
-                const r = await fetch(`${API_URL}?action=save_settings`, {
+                const settingsReq = fetch(`${API_URL}?action=save_settings`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include', body: JSON.stringify(payload),
+                    credentials: 'include', body: JSON.stringify(settingsPayload)
                 });
-                const d = await r.json();
-                if (r.ok) {
+
+                const configReq = fetch(`${API_URL}?action=save_config`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        csrf_token: AdminAuth.getCsrfToken(),
+                        allowed_origins: allowedOrigins.length ? allowedOrigins : ['*'],
+                        timezone, app_language: language, app_calendar: calendar
+                    })
+                });
+
+                const [settingsRes, configRes] = await Promise.all([settingsReq, configReq]);
+                const configData = await configRes.json();
+
+                if (settingsRes.ok && configRes.ok) {
                     msgEl.innerHTML = '<div class="message success">Settings saved.</div>';
                     setTimeout(() => { if (msgEl) msgEl.innerHTML = ''; }, 2500);
-                } else { msgEl.innerHTML = `<div class="message error">${d.error}</div>`; }
-            } catch (e) { msgEl.innerHTML = '<div class="message error">Network error</div>'; }
+                } else {
+                    msgEl.innerHTML = `<div class="message error">${configData.error || 'Failed to save settings'}</div>`;
+                }
+            } catch (e) {
+                msgEl.innerHTML = '<div class="message error">Network error</div>';
+            }
         }
 
         hoistToWindow({ saveSettings });
@@ -1489,196 +1606,7 @@ VIEWS['settings-reactions'] = {
     }
 };
 
-VIEWS['settings-configuration'] = {
-    title: 'Configuration',
-    css: `
-        .util-card { background:var(--on-background); border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,.1); overflow:hidden; }
-        .util-card-header { padding:1rem 1.5rem; border-bottom:1px solid var(--gray,#e9ecef); display:flex; align-items:center; gap:.6rem; }
-        .util-card-header h2 { font-size:1.1rem; color:var(--body-text,#333); }
-        .util-card-header .icon { font-size:1.2rem; }
-        .util-card-body { padding:1.5rem; }
-        .setting-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; padding:.75rem 0; border-bottom:1px solid var(--gray,#f0f0f0); }
-        .setting-row:last-of-type { border-bottom:none; }
-        .setting-label { flex:1 1 200px; }
-        .setting-label strong { color:var(--body-text); display:block; font-size:.95rem; }
-        .setting-label span { font-size:.82rem; color:var(--body-text); opacity:.8; }
-        .themed-control { background-color:transparent; color:var(--body-text); border:1px solid var(--gray,#ddd); border-radius:4px; padding:.5rem .75rem; font-size:.95rem; width:100%; max-width:300px; }
-        select.themed-control option { background-color:var(--on-background,#fff); color:var(--body-text,#333); }
-    `,
-    html: () => `
-        <div class="container">
-            <h2 style="margin-bottom: 1.5rem;">Configuration</h2>
-            <div id="settings-message"></div>
 
-            <div class="util-card" style="margin-bottom: 1.5rem;">
-                <div class="util-card-header"><span class="icon">⚙️</span><h2>System Configuration</h2></div>
-                <div class="util-card-body">
-                    <div class="setting-row">
-                        <div class="setting-label"><strong>Allowed Origins</strong><span>Comma-separated list of domains allowed to embed comments (CORS)</span></div>
-                        <input type="text" id="config-allowed-origins" class="themed-control" placeholder="https://example.com">
-                    </div>
-                    <div class="setting-row">
-                        <div class="setting-label"><strong>Timezone</strong><span>Choose the timezone for comment timestamps</span></div>
-                        <select id="config-timezone" class="themed-control">
-                            <option value="UTC">UTC</option>
-                            <option value="America/New_York">America/New_York (Eastern Time)</option>
-                            <option value="America/Chicago">America/Chicago (Central Time)</option>
-                            <option value="America/Denver">America/Denver (Mountain Time)</option>
-                            <option value="America/Los_Angeles">America/Los_Angeles (Pacific Time)</option>
-                            <option value="Europe/London">Europe/London (GMT)</option>
-                            <option value="Europe/Paris">Europe/Paris (Central European)</option>
-                            <option value="Europe/Berlin">Europe/Berlin (Central European)</option>
-                            <option value="Asia/Tehran">Asia/Tehran (Iran)</option>
-                            <option value="Asia/Dubai">Asia/Dubai (Gulf)</option>
-                            <option value="Asia/Tokyo">Asia/Tokyo (Japan)</option>
-                            <option value="Asia/Shanghai">Asia/Shanghai (China)</option>
-                            <option value="Australia/Sydney">Australia/Sydney (Australian Eastern)</option>
-                        </select>
-                    </div>
-                    <div class="setting-row">
-                        <div class="setting-label"><strong>Frontend Language</strong><span>Language for the comment widget interface</span></div>
-                        <select id="config-language" class="themed-control">
-                            <option value="en">English</option>
-                            <option value="fa">فارسی (Persian)</option>
-                        </select>
-                    </div>
-                    <div class="setting-row">
-                        <div class="setting-label"><strong>Calendar System</strong><span>Calendar preference for the admin panel</span></div>
-                        <select id="config-calendar" class="themed-control">
-                            <option value="gregorian">Gregorian</option>
-                            <option value="persian">Solar Hijri (Jalali / شمسی)</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="util-card" style="margin-bottom: 1.5rem;">
-                <div class="util-card-header"><span class="icon">👤</span><h2>Admin Profile</h2></div>
-                <div class="util-card-body">
-                    <div class="setting-row">
-                        <div class="setting-label"><strong>Admin Name</strong><span>Used to pre-fill the reply form</span></div>
-                        <input type="text" id="config-admin-name" class="themed-control" placeholder="Your Name">
-                    </div>
-                    <div class="setting-row">
-                        <div class="setting-label"><strong>Admin Email</strong><span>Used to pre-fill the reply form</span></div>
-                        <input type="email" id="config-admin-email" class="themed-control" placeholder="your@email.com">
-                    </div>
-                    <div class="setting-row">
-                        <div class="setting-label"><strong>Admin Website</strong><span>Used to pre-fill the reply form (optional)</span></div>
-                        <input type="url" id="config-admin-url" class="themed-control" placeholder="https://yourwebsite.com">
-                    </div>
-                </div>
-            </div>
-
-            <button id="save-config-btn" class="btn btn-primary" onclick="saveConfig()">Save</button>
-        </div>`,
-
-    init({ hoistToWindow }) {
-        async function loadConfig() {
-            const msgEl = document.getElementById('settings-message');
-            try {
-                // Load system config
-                const r = await fetch(`${API_URL}?action=get_config`, { credentials: 'include' });
-                const d = await r.json();
-                if (r.ok) {
-                    document.getElementById('config-allowed-origins').value = Array.isArray(d.allowed_origins) ? d.allowed_origins.join(', ') : '';
-                    document.getElementById('config-timezone').value = d.timezone || 'UTC';
-                    document.getElementById('config-language').value = d.app_language || 'en';
-                    document.getElementById('config-calendar').value = d.app_calendar || 'gregorian';
-                } else {
-                    if (msgEl) msgEl.innerHTML = `<div class="message error">${d.error || 'Failed to load configuration'}</div>`;
-                }
-
-                // Load admin profile settings
-                const sr = await fetch(`${API_URL}?action=get_settings`, { credentials: 'include' });
-                const sd = await sr.json();
-                if (sr.ok && sd.settings) {
-                    document.getElementById('config-admin-name').value = sd.settings.admin_name || '';
-                    document.getElementById('config-admin-email').value = sd.settings.admin_email || '';
-                    document.getElementById('config-admin-url').value = sd.settings.admin_url || '';
-                }
-            } catch (e) {
-                if (msgEl) msgEl.innerHTML = '<div class="message error">Network error loading configuration</div>';
-            }
-        }
-
-        async function saveConfig() {
-            const msgEl = document.getElementById('settings-message');
-
-            // System Config
-            const allowedOrigins = document.getElementById('config-allowed-origins').value.split(',').map(s => s.trim()).filter(s => s);
-            const timezone = document.getElementById('config-timezone').value;
-            const language = document.getElementById('config-language').value;
-            const calendar = document.getElementById('config-calendar').value;
-
-            // Admin Profile
-            const adminName = document.getElementById('config-admin-name').value.trim();
-            const adminEmail = document.getElementById('config-admin-email').value.trim();
-            const adminUrl = document.getElementById('config-admin-url').value.trim();
-
-            if (!allowedOrigins.length) {
-                if (msgEl) msgEl.innerHTML = '<div class="message error">At least one allowed origin is required</div>';
-                return;
-            }
-
-            try {
-                await AdminAuth.ensureCsrfToken();
-
-                // Fetch current settings to preserve them
-                const sr = await fetch(`${API_URL}?action=get_settings`, { credentials: 'include' });
-                const currentSettings = (await sr.json()).settings || {};
-
-                // Save Settings (Admin Profile)
-                const settingsPayload = {
-                    csrf_token: AdminAuth.getCsrfToken(),
-                    require_moderation: currentSettings.require_moderation || 'false',
-                    comment_sort_order: currentSettings.comment_sort_order || 'desc',
-                    admin_name: adminName,
-                    admin_email: adminEmail,
-                    admin_url: adminUrl
-                };
-
-                const sReq = await fetch(`${API_URL}?action=save_settings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify(settingsPayload)
-                });
-
-                // Save Config (System)
-                const r = await fetch(`${API_URL}?action=save_config`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        csrf_token: AdminAuth.getCsrfToken(),
-                        allowed_origins: allowedOrigins,
-                        timezone: timezone,
-                        app_language: language,
-                        app_calendar: calendar
-                    })
-                });
-
-                const d = await r.json();
-
-                if (r.ok && sReq.ok) {
-                    var saveBtn = document.getElementById('save-config-btn');
-                    if (saveBtn) {
-                        saveBtn.textContent = 'Saved \u2713';
-                        setTimeout(function() { saveBtn.textContent = 'Save'; }, 1500);
-                    }
-                } else {
-                    if (msgEl) msgEl.innerHTML = `<div class="message error">${d.error || 'Failed to save configuration'}</div>`;
-                }
-            } catch (e) {
-                if (msgEl) msgEl.innerHTML = '<div class="message error">Network error saving configuration</div>';
-            }
-        }
-
-        hoistToWindow({ saveConfig });
-        loadConfig();
-    },
-};
 
 VIEWS['settings-database'] = {
     title: 'Database Settings',
