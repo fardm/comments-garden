@@ -519,6 +519,29 @@ const handler = async (c: any) => {
   }
 }
 
+// Gravatar proxy: serves avatars from same-origin to satisfy admin CSP (img-src 'self')
+app.get('/api/gravatar/:hash', async (c) => {
+  const hash = c.req.param('hash')
+  if (!hash || !/^[a-f0-9]{32,64}$/i.test(hash)) {
+    return c.json({ error: 'Invalid hash' }, 400)
+  }
+  const size = c.req.query('s') || '80'
+  const url = `https://www.gravatar.com/avatar/${hash}?s=${size}&d=mp`
+  try {
+    const resp = await fetch(url)
+    const body = await resp.arrayBuffer()
+    return new Response(body, {
+      status: resp.status,
+      headers: {
+        'Content-Type': resp.headers.get('Content-Type') || 'image/png',
+        'Cache-Control': 'public, max-age=300',
+      }
+    })
+  } catch {
+    return c.json({ error: 'Failed to fetch avatar' }, 502)
+  }
+})
+
 app.all('/api', handler)
 app.all('/api.php', handler)
 

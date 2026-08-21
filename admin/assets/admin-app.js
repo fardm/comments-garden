@@ -261,11 +261,9 @@ VIEWS['comments'] = {
 
         .acc-header{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:.65rem;}
         .acc-header-left{display:flex;align-items:center;gap:.75rem;min-width:0;flex:1;}
-        .acc-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.95rem;font-weight:700;color:#fff;flex-shrink:0;text-transform:uppercase;}
+        .acc-gravatar{width:38px;height:38px;border-radius:50%;flex-shrink:0;object-fit:cover;}
         .acc-user-info{min-width:0;}
-        .acc-author{font-weight:600;font-size:.95rem;color:var(--body-text);display:block;line-height:1.3;}
-        .acc-author a{color:var(--body-text);text-decoration:none;}
-        .acc-author a:hover{text-decoration:underline;color:var(--primary);}
+        .acc-author{font-weight:600;font-size:.95rem;display:block;line-height:1.3;}
         .acc-email{font-size:.8rem;color:var(--body-text);opacity:.55;display:block;line-height:1.3;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px;}
         .acc-header-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0;}
 
@@ -288,12 +286,12 @@ VIEWS['comments'] = {
         .acc-dropdown-item.danger svg{opacity:.8;}
         .acc-dropdown-sep{height:1px;background:var(--lightgray);margin:.3rem 0;}
 
-        .acc-meta-row{display:flex;flex-wrap:wrap;gap:.65rem 1.25rem;margin-bottom:.75rem;font-size:.8rem;color:var(--body-text);opacity:.5;}
+        .acc-meta-row{display:flex;flex-wrap:wrap;gap:.65rem 1.25rem;margin-bottom:.75rem;font-size:.8rem;color:var(--body-text);opacity:.8; border-bottom: 1px solid var(--lightgray); padding-bottom: 10px;}
         .acc-meta-item{display:flex;align-items:center;gap:.3rem;white-space:nowrap;}
         .acc-meta-item svg{width:13px;height:13px;flex-shrink:0;opacity:.7;}
-        .acc-meta-item a{color:var(--body-text) !important;opacity:1 !important;text-decoration:none !important;}
+        .acc-meta-item a{color:var(--primary) !important;opacity:1 !important;text-decoration:none !important;}
         .acc-meta-item a:hover{text-decoration:underline !important;}
-        .acc-reply-to{font-size:.8rem;color:var(--body-text);opacity:.5;margin-bottom:.5rem;}
+        .acc-tree-indent{margin-left:1.5rem;border-left:2px solid var(--lightgray);padding-left:1rem;}
 
         .acc-content{margin-bottom:.75rem;line-height:1.65;color:var(--body-text);font-size:.93rem;unicode-bidi:plaintext;word-break:break-word;}
 
@@ -303,16 +301,19 @@ VIEWS['comments'] = {
         .acc-reaction-pill .rp-emoji{font-style:normal;line-height:1;}
         .acc-reaction-pill .rp-count{font-size:.8rem;min-width:1ch;}
 
-        .acc-actions-row{display:flex;align-items:center;gap:.5rem;padding-top:.5rem;border-top:1px solid var(--lightgray);}
+        .acc-actions-row{display:flex;align-items:center;gap:.5rem;padding-top:.5rem;}
         .acc-reply-btn{display:inline-flex;align-items:center;gap:.35rem;padding:.35rem .75rem;border:1px solid var(--lightgray);border-radius:6px;background:transparent;color:var(--body-text);font-size:.85rem;cursor:pointer;transition:all .15s;font-family:inherit;opacity:.7;}
         .acc-reply-btn:hover{background:var(--lightgray);opacity:1;border-color:var(--gray);}
         .acc-reply-btn svg{width:14px;height:14px;}
+
+        .acc-view-select{padding:.4rem .6rem;border:1px solid var(--gray,#ddd);border-radius:4px;font-size:.85rem;background:var(--on-background);color:var(--body-text);cursor:pointer;}
 
         @media(max-width:768px){
             .admin-comment-card{padding:1rem;}
             .acc-email{max-width:180px;}
             .acc-meta-row{gap:.4rem .75rem;}
             .acc-header{flex-wrap:wrap;}
+            .acc-tree-indent{margin-left:1rem;padding-left:.75rem;}
         }
     `,
     html: () => `
@@ -351,6 +352,10 @@ VIEWS['comments'] = {
                         <option value="desc">Newest</option>
                         <option value="asc">Oldest</option>
                     </select>
+                    <select id="c-view" class="acc-view-select" onchange="switchView(this.value)">
+                        <option value="timeline">Timeline</option>
+                        <option value="tree">Tree</option>
+                    </select>
                 </div>
                 <div class="comments-list" id="comments-list"><p class="no-comments">Loading…</p></div>
                 <div class="pagination-bar" id="comments-pagination"></div>
@@ -372,10 +377,46 @@ VIEWS['comments'] = {
             { type: 'funny', emoji: '😄' }, { type: 'neutral', emoji: '😐' },
         ];
 
+        // View mode state
+        let viewMode = 'timeline';
+        let lastLoadedComments = [];
+
         // Reply state
         let replyingToId = null;
         let replyingToPageUrl = null;
         let adminProfileCache = null;
+
+        // Gravatar URL via same-origin proxy (CSP-safe)
+        async function getGravatarUrl(email, size) {
+            if (!email) return null;
+            size = size || 80;
+            try {
+                const normalized = email.trim().toLowerCase();
+                const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(normalized));
+                const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+                return `/api/gravatar/${hashHex}?s=${size}`;
+            } catch (e) { return null; }
+        }
+
+        function switchView(mode) {
+            viewMode = mode;
+            displayComments(lastLoadedComments);
+        }
+
+        // Build a hierarchical tree from a flat list of comments
+        function buildCommentTree(comments) {
+            const map = {};
+            const roots = [];
+            comments.forEach(c => { map[c.id] = { ...c, _children: [] }; });
+            comments.forEach(c => {
+                if (c.parent_id && map[c.parent_id]) {
+                    map[c.parent_id]._children.push(map[c.id]);
+                } else {
+                    roots.push(map[c.id]);
+                }
+            });
+            return roots;
+        }
 
         async function loadCounts() {
             try {
@@ -430,7 +471,8 @@ VIEWS['comments'] = {
                 const data = await r.json();
                 if (r.ok) {
                     totalCount = data.pagination.total;
-                    displayComments(data.comments);
+                    lastLoadedComments = data.comments || [];
+                    displayComments(lastLoadedComments);
                     renderPagination();
                 } else {
                     container.innerHTML = `<div class="message error">Error: ${data.error || 'Failed to load'}</div>`;
@@ -438,14 +480,6 @@ VIEWS['comments'] = {
             } catch (e) {
                 container.innerHTML = `<div class="message error">Network error: ${e.message}</div>`;
             }
-        }
-
-        // Avatar color helper: deterministic color from name
-        const AVATAR_COLORS = ['#4a90e2','#28a745','#e67e22','#e74c3c','#9b59b6','#1abc9c','#e91e63','#00bcd4','#ff9800','#607d8b'];
-        function getAvatarColor(name) {
-            let h = 0;
-            for (let i = 0; i < (name || '').length; i++) h = ((h << 5) - h + name.charCodeAt(i)) | 0;
-            return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
         }
 
         // Toggle three-dot dropdown
@@ -472,8 +506,6 @@ VIEWS['comments'] = {
                 const isSpam = comment.status === 'spam';
                 const isApproved = comment.status === 'approved';
                 const name = comment.author_name || 'A';
-                const initial = name.charAt(0);
-                const avatarColor = getAvatarColor(name);
                 const escapedPageUrl = escapeHtml(comment.page_url || '').replace(/'/g, "\\'");
 
                 // Build reaction pills (same as frontend)
@@ -507,7 +539,7 @@ VIEWS['comments'] = {
                 <div class="admin-comment-card${isDeleted ? ' is-deleted' : ''}${isAdminComment ? ' is-admin' : ''}" id="comment-${comment.id}">
                     <div class="acc-header">
                         <div class="acc-header-left">
-                            <div class="acc-avatar" style="background:${avatarColor}">${escapeHtml(initial)}</div>
+                            <img class="acc-gravatar av-gravatar" src="" data-email="${escapeHtml(comment.author_email || '')}" alt="${escapeHtml(name)}" width="38" height="38">
                             <div class="acc-user-info">
                                 ${comment.author_url
                                     ? `<a class="acc-author" href="${escapeHtml(comment.author_url)}" target="_blank" rel="nofollow noopener">${escapeHtml(name)}</a>`
@@ -538,8 +570,11 @@ VIEWS['comments'] = {
                             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                             ${escapeHtml(comment.ip_address || 'N/A')}
                         </span>
+                        ${comment.parent_id ? `<span class="acc-meta-item">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                            Reply to #${comment.parent_id}
+                        </span>` : ''}
                     </div>
-                    ${comment.parent_id ? `<div class="acc-reply-to">Reply to comment #${comment.parent_id}</div>` : ''}
                     <div class="acc-content" dir="auto" id="comment-content-${comment.id}">${escapeHtml(comment.content)}</div>
                     ${reactionPills ? `<div class="acc-reactions">${reactionPills}</div>` : ''}
                     <div class="acc-actions-row">
@@ -573,6 +608,33 @@ VIEWS['comments'] = {
                     </div>
                 </div>`;
             }).join('');
+
+            // Tree view: wrap children in indent divs
+            if (viewMode === 'tree') {
+                const tree = buildCommentTree(comments);
+                function flattenTree(nodes, depth) {
+                    let html = '';
+                    for (const node of nodes) {
+                        const card = document.getElementById(`comment-${node.id}`);
+                        if (!card) continue;
+                        if (depth > 0) card.classList.add('acc-tree-indent');
+                        html += card.outerHTML;
+                        if (node._children && node._children.length) {
+                            html += flattenTree(node._children, depth + 1);
+                        }
+                    }
+                    return html;
+                }
+                container.innerHTML = flattenTree(tree, 0);
+            }
+
+            // Load Gravatar images
+            document.querySelectorAll('.av-gravatar[data-email]').forEach(img => {
+                const email = img.dataset.email;
+                if (!email) return;
+                getGravatarUrl(email, 80).then(url => { if (url) img.src = url; });
+            });
+
             if (window.lucide) lucide.createIcons();
         }
 
@@ -760,7 +822,7 @@ VIEWS['comments'] = {
             switchTab, reloadComments, commentsChangePage,
             moderateComment, deleteComment, restoreComment, permanentDelete,
             startCommentEdit, showReplyForm, hideReplyForm, submitReply,
-            toggleCommentMenu
+            toggleCommentMenu, switchView
         });
 
         // Close dropdown menus on outside click
