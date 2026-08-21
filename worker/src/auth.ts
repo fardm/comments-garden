@@ -167,19 +167,34 @@ export class AuthService {
 
   // ── Session management ──────────────────────────────────────────────────
 
-  async isAdmin(c: Context): Promise<boolean> {
-    // 1. Check cookie
+  getSessionToken(c: Context): string | null {
     const token = getCookie(c, ADMIN_TOKEN_COOKIE)
-    if (!token) {
-      // 2. Check Authorization header
-      const authHeader = c.req.header('Authorization')
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        return this.validateSession(authHeader.substring(7))
-      }
-      return false
-    }
+    if (token) return token
 
+    const authHeader = c.req.header('Authorization')
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return authHeader.substring(7)
+    }
+    return null
+  }
+
+  async isAdmin(c: Context): Promise<boolean> {
+    const token = this.getSessionToken(c)
+    if (!token) return false
     return this.validateSession(token)
+  }
+
+  async generateCsrfToken(sessionToken: string): Promise<string> {
+    const encoder = new TextEncoder()
+    const data = encoder.encode(sessionToken)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    return bytesToHex(new Uint8Array(hashBuffer))
+  }
+
+  async validateCsrfToken(sessionToken: string | null, csrfToken: string | null): Promise<boolean> {
+    if (!sessionToken || !csrfToken) return false
+    const expected = await this.generateCsrfToken(sessionToken)
+    return expected === csrfToken
   }
 
   private async validateSession(token: string): Promise<boolean> {

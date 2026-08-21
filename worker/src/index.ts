@@ -181,21 +181,21 @@ const handler = async (c: any) => {
 
     if (method === 'POST' && action === 'login') {
       const body = await c.req.json()
-      if (await ratelimit.isCommentRateLimited(ip)) return c.json({ error: "Too many comments. Please try again later." }, 429)
       const result = await auth.login(c, body.password, ip, userAgent)
       if (result.error) return c.json(result, 401)
       // Best-effort cleanup of old rate-limit logs on login
       ratelimit.cleanupOldLogs().catch(() => {})
-      return c.json({ success: true, message: 'Logged in successfully', csrf_token: 'dummy_csrf' })
+      const csrfToken = await auth.generateCsrfToken(result.token)
+      return c.json({ success: true, message: 'Logged in successfully', csrf_token: csrfToken })
     }
 
     if (method === 'GET' && action === 'csrf_token') {
-      return c.json({ token: 'dummy_csrf' })
-    }
-
-    if (method === 'POST' && action === 'logout') {
-      await auth.logout(c)
-      return c.json({ success: true })
+      const token = auth.getSessionToken(c)
+      if (!token || !(await auth.isAdmin(c))) {
+        return c.json({ error: 'Unauthorized' }, 401)
+      }
+      const csrfToken = await auth.generateCsrfToken(token)
+      return c.json({ token: csrfToken })
     }
 
     // ── Admin Routes ─────────────────────────────────────────────
@@ -203,6 +203,21 @@ const handler = async (c: any) => {
     // Check admin
     if (!(await auth.isAdmin(c))) {
       return c.json({ error: 'Unauthorized' }, 401)
+    }
+
+    if (['POST', 'PUT', 'DELETE'].includes(method)) {
+      const providedCsrfToken = c.req.header('X-CSRF-Token')
+
+      const sessionToken = auth.getSessionToken(c)
+      const isValid = await auth.validateCsrfToken(sessionToken, providedCsrfToken)
+      if (!isValid) {
+        return c.json({ error: 'Invalid CSRF token' }, 403)
+      }
+    }
+
+    if (method === 'POST' && action === 'logout') {
+      await auth.logout(c)
+      return c.json({ success: true })
     }
 
     if (method === 'POST' && action === 'set_password') {
@@ -400,13 +415,6 @@ const handler = async (c: any) => {
     if (method === 'GET' && action === 'get_config') {
       const config = await settings.getAllSettings()
       let allowed_origins = c.env.ALLOWED_ORIGINS ? c.env.ALLOWED_ORIGINS.split(',').map((o: string) => o.trim()) : ['*']
-      if (config.allowed_origins) {
-        try {
-          allowed_origins = JSON.parse(config.allowed_origins)
-        } catch {
-          allowed_origins = config.allowed_origins.split(',').map((o: string) => o.trim())
-        }
-      }
       return c.json({
         ...config,
         allowed_origins

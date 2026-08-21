@@ -147,7 +147,8 @@ const AdminAuth = (() => {
     async function logout() {
         if (!confirm('Are you sure you want to log out?')) return;
         try {
-            await fetch(`${API_URL}?action=logout`, { method: 'POST', credentials: 'include' });
+            await ensureCsrfToken();
+            await fetch(`${API_URL}?action=logout`, { method: 'POST', headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken(), 'Content-Type': 'application/json' }, body: JSON.stringify({}), credentials: 'include' });
         } catch (_) {}
         location.reload();
     }

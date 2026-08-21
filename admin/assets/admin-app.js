@@ -197,7 +197,6 @@ function renderPageUrl(pageUrl) {
                         window.AdminConfig = {
                             timezone: data.timezone || 'UTC',
                             calendar: data.app_calendar || 'gregorian',
-                            allowedOrigins: data.allowed_origins || ['*']
                         };
                     }
                 })
@@ -679,9 +678,9 @@ VIEWS['comments'] = {
                 commentEl.innerHTML = '<p style="text-align:center;padding:2rem;">Processing…</p>';
                 const r = await fetch(`${API_URL}?action=moderate&id=${id}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+                    headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken(), 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
                     credentials: 'include',
-                    body: JSON.stringify({ status, csrf_token: AdminAuth.getCsrfToken() }),
+                    body: JSON.stringify({ status }),
                 });
                 const result = await r.json();
                 if (r.ok) {
@@ -701,7 +700,7 @@ VIEWS['comments'] = {
             if (!confirm('Move this comment to Trash?')) return;
             try {
                 await AdminAuth.ensureCsrfToken();
-                const r = await fetch(`${API_URL}?action=delete&id=${id}`, {
+                const r = await fetch(`${API_URL}?action=delete&id=${id}`, { headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken() },
                     method: 'DELETE', credentials: 'include',
                 });
                 if (r.ok) { loadComments(); loadCounts(); }
@@ -714,9 +713,9 @@ VIEWS['comments'] = {
                 await AdminAuth.ensureCsrfToken();
                 const r = await fetch(`${API_URL}?action=restore`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken(), 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ id, csrf_token: AdminAuth.getCsrfToken() }),
+                    body: JSON.stringify({ id }),
                 });
                 if (r.ok) { loadComments(); loadCounts(); }
                 else { alert(`Failed: ${(await r.json()).error || 'Unknown error'}`); }
@@ -727,7 +726,7 @@ VIEWS['comments'] = {
             if (!confirm('Permanently delete this comment? This cannot be undone.')) return;
             try {
                 await AdminAuth.ensureCsrfToken();
-                const r = await fetch(`${API_URL}?action=permanent_delete&id=${id}`, {
+                const r = await fetch(`${API_URL}?action=permanent_delete&id=${id}`, { headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken() },
                     method: 'DELETE', credentials: 'include',
                 });
                 if (r.ok) { loadComments(); loadCounts(); }
@@ -790,12 +789,12 @@ VIEWS['comments'] = {
                 statusEl.style.color = 'var(--body-text,#888)';
                 const response = await fetch(`${API_URL}?action=admin_post`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken(), 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({
                         page_url: replyingToPageUrl, parent_id: commentId,
                         author_name: name, author_email: email, author_url: url || null,
-                        content, author_role: 'admin', csrf_token: AdminAuth.getCsrfToken()
+                        content, author_role: 'admin'
                     })
                 });
                 const result = await response.json();
@@ -901,7 +900,7 @@ VIEWS['analytics'] = {
         let currentGranularity = 'daily';
 
         const [analyticsResp, reactionsResp] = await Promise.all([
-            fetch(`${API_URL}?action=analytics&_=${Date.now()}`, { credentials: 'include', cache: 'no-store' }),
+            fetch(`${API_URL}?action=analytics&_=${Date.now()}`, { headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken() }, credentials: 'include', cache: 'no-store' }),
             fetch(`${API_URL}?action=post_reactions_summary&_=${Date.now()}`, { credentials: 'include', cache: 'no-store' })
         ]);
         if (analyticsResp.ok) { try { loadAnalytics(await analyticsResp.json()); } catch (e) { console.error('loadAnalytics failed:', e); } }
@@ -1169,7 +1168,7 @@ VIEWS['post-reactions'] = {
             await AdminAuth.ensureCsrfToken();
             const msgEl = document.getElementById('reactions-message');
             try {
-                const r = await fetch(`${API_URL}?action=delete_post_reactions&url=${encodeURIComponent(pageUrl)}&csrf_token=${encodeURIComponent(AdminAuth.getCsrfToken())}`, { method: 'DELETE', credentials: 'include' });
+                const r = await fetch(`${API_URL}?action=delete_post_reactions&url=${encodeURIComponent(pageUrl)}`, { method: 'DELETE', credentials: 'include' });
                 const result = await r.json();
                 if (r.ok) { msgEl.innerHTML = '<div class="message success">Reactions cleared.</div>'; setTimeout(() => { if (msgEl) msgEl.innerHTML = ''; }, 3000); loadReactions(); }
                 else { msgEl.innerHTML = `<div class="message error">${result.error || 'Failed to clear'}</div>`; }
@@ -1181,7 +1180,7 @@ VIEWS['post-reactions'] = {
             await AdminAuth.ensureCsrfToken();
             const msgEl = document.getElementById('latest-message');
             try {
-                const r = await fetch(`${API_URL}?action=delete_single_reaction&id=${encodeURIComponent(reactionId)}&csrf_token=${encodeURIComponent(AdminAuth.getCsrfToken())}`, { method: 'DELETE', credentials: 'include' });
+                const r = await fetch(`${API_URL}?action=delete_single_reaction&id=${encodeURIComponent(reactionId)}`, { headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken() }, method: 'DELETE', credentials: 'include' });
                 const result = await r.json();
                 if (r.ok) { msgEl.innerHTML = '<div class="message success">Reaction deleted.</div>'; setTimeout(() => { if (msgEl) msgEl.innerHTML = ''; }, 3000); loadLatestReactions(); loadReactions(); }
                 else { msgEl.innerHTML = `<div class="message error">${result.error || 'Failed to delete'}</div>`; }
@@ -1341,10 +1340,6 @@ VIEWS['settings-general'] = {
                             <option value="persian">Solar Hijri (Jalali / شمسی)</option>
                         </select>
                     </div>
-                    <div class="setting-row">
-                        <div class="setting-label"><strong>Allowed Origins (CORS)</strong><span>Comma-separated list of domains allowed to embed the comments widget</span></div>
-                        <input type="text" id="setting-allowed-origins" class="themed-control" placeholder="https://example.com">
-                    </div>
                 </div>
             </div>
 
@@ -1371,7 +1366,7 @@ VIEWS['settings-general'] = {
         // All setting element IDs that trigger auto-save on change
         const autoSaveIds = [
             'setting-require-moderation', 'setting-comment-sort-order', 'setting-language',
-            'setting-timezone', 'setting-calendar', 'setting-allowed-origins',
+            'setting-timezone', 'setting-calendar',
             'setting-admin-name', 'setting-admin-email', 'setting-admin-url'
         ];
 
@@ -1417,7 +1412,6 @@ VIEWS['settings-general'] = {
                     document.getElementById('setting-timezone').value = cd.timezone || 'UTC';
                     document.getElementById('setting-calendar').value = cd.app_calendar || 'gregorian';
                     document.getElementById('setting-language').value = cd.app_language || 'en';
-                    document.getElementById('setting-allowed-origins').value = Array.isArray(cd.allowed_origins) ? cd.allowed_origins.join(', ') : '';
                 }
             } catch (e) {
                 console.error('Settings load failed', e);
@@ -1441,14 +1435,13 @@ VIEWS['settings-general'] = {
                 const timezone = document.getElementById('setting-timezone').value;
                 const calendar = document.getElementById('setting-calendar').value;
                 const language = document.getElementById('setting-language').value;
-                const allowedOrigins = document.getElementById('setting-allowed-origins').value.split(',').map(s => s.trim()).filter(s => s);
 
                 // Save settings (requires get_settings to preserve existing keys)
                 const sr = await fetch(`${API_URL}?action=get_settings`, { credentials: 'include' });
                 const currentSettings = (await sr.json()).settings || {};
 
                 const settingsPayload = {
-                    csrf_token: AdminAuth.getCsrfToken(),
+
                     require_moderation: requireModeration,
                     comment_sort_order: commentSortOrder,
                     admin_name: adminName,
@@ -1462,18 +1455,14 @@ VIEWS['settings-general'] = {
                 };
 
                 const settingsReq = fetch(`${API_URL}?action=save_settings`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include', body: JSON.stringify(settingsPayload)
+                    method: 'POST', headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken(), 'Content-Type': 'application/json' },
+                    credentials: 'include', body: JSON.stringify({ ...settingsPayload })
                 });
 
                 const configReq = fetch(`${API_URL}?action=save_config`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken(), 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({
-                        csrf_token: AdminAuth.getCsrfToken(),
-                        allowed_origins: allowedOrigins.length ? allowedOrigins : ['*'],
-                        timezone, app_language: language, app_calendar: calendar
-                    })
+                    body: JSON.stringify({ timezone, app_language: language, app_calendar: calendar })
                 });
 
                 const [settingsRes, configRes] = await Promise.all([settingsReq, configReq]);
@@ -1608,12 +1597,9 @@ VIEWS['settings-reactions'] = {
                 await AdminAuth.ensureCsrfToken();
                 const r = await fetch(`${API_URL}?action=save_settings`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken(), 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({
-                        csrf_token: AdminAuth.getCsrfToken(),
-                        enabled_reactions: JSON.stringify(currentEnabled)
-                    })
+                    body: JSON.stringify({ enabled_reactions: JSON.stringify(currentEnabled) })
                 });
                 const d = await r.json();
                 if (!r.ok) throw new Error(d.error || 'Save failed');
@@ -1726,7 +1712,7 @@ VIEWS['settings-database'] = {
             await AdminAuth.ensureCsrfToken();
             msgEl.innerHTML = '<div class="message info">Running VACUUM…</div>';
             try {
-                const r = await fetch(`${API_URL}?action=vacuum`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({csrf_token:AdminAuth.getCsrfToken()}) });
+                const r = await fetch(`${API_URL}?action=vacuum`, { method:'POST', headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken(),'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({}) });
                 const d = await r.json();
                 if (r.ok) { const saved=d.saved_bytes>0?` Freed ${formatBytes(d.saved_bytes)}.`:' No space reclaimed (already optimal).'; msgEl.innerHTML=`<div class="message success">Database optimized.${saved} New size: ${formatBytes(d.size_after)}.</div>`; loadDbStats(); }
                 else { msgEl.innerHTML = `<div class="message error">${d.error}</div>`; }
@@ -1739,7 +1725,7 @@ VIEWS['settings-database'] = {
             await AdminAuth.ensureCsrfToken();
             msgEl.innerHTML = '<div class="message info">Purging spam…</div>';
             try {
-                const r = await fetch(`${API_URL}?action=delete_spam`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({csrf_token:AdminAuth.getCsrfToken()}) });
+                const r = await fetch(`${API_URL}?action=delete_spam`, { method:'POST', headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken(),'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({}) });
                 const d = await r.json();
                 if (r.ok) { msgEl.innerHTML = `<div class="message success">Deleted ${d.deleted_count} spam comment(s).</div>`; loadDbStats(); }
                 else { msgEl.innerHTML = `<div class="message error">${d.error}</div>`; }
@@ -1811,7 +1797,6 @@ VIEWS['settings-database'] = {
             if (!msgEl || !btn) return;
 
             const req = {
-                csrf_token: AdminAuth.getCsrfToken(),
                 delete_comments: document.getElementById('dd-comments').checked,
                 delete_post_reactions: document.getElementById('dd-post-reactions').checked,
                 delete_comment_reactions: document.getElementById('dd-comment-reactions').checked,
@@ -1822,8 +1807,8 @@ VIEWS['settings-database'] = {
 
             try {
                 await AdminAuth.ensureCsrfToken();
-                req.csrf_token = AdminAuth.getCsrfToken();
-                const r = await fetch(`${API_URL}?action=db_delete_data`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(req) });
+
+                const r = await fetch(`${API_URL}?action=db_delete_data`, { method: 'POST', headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken(), 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(req) });
                 const d = await r.json();
 
                 if (r.ok) {
@@ -1835,7 +1820,7 @@ VIEWS['settings-database'] = {
                     const resStr = parts.length > 0 ? parts.join(', ') : 'no data';
                     msgEl.innerHTML = `<div class="message success">Successfully deleted ${resStr}. Vacuuming database...</div>`;
 
-                    await fetch(`${API_URL}?action=vacuum`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({csrf_token:AdminAuth.getCsrfToken()}) });
+                    await fetch(`${API_URL}?action=vacuum`, { method:'POST', headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken(),'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({}) });
 
                     setTimeout(() => {
                         closeDeleteDataModal();
@@ -1925,9 +1910,9 @@ VIEWS['settings-notifications'] = {
             try {
                 await AdminAuth.ensureCsrfToken();
                 const r = await fetch(`${API_URL}?action=telegram_toggle`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken(), 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ telegram_enabled: enabled, csrf_token: AdminAuth.getCsrfToken() }),
+                    body: JSON.stringify({ telegram_enabled: enabled }),
                 });
                 const d = await r.json();
                 if (r.ok) {
@@ -2055,7 +2040,7 @@ VIEWS['settings-import-export'] = {
             if (msgEl) msgEl.innerHTML = '<div class="message info">Analyzing file…</div>';
             if (prevEl) prevEl.style.display = 'none';
             try {
-                const r = await fetch(`${API_URL}?action=import_comments&preview=1`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ csrf_token: AdminAuth.getCsrfToken(), content: importFileContent }) });
+                const r = await fetch(`${API_URL}?action=import_comments&preview=1`, { method: 'POST', headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken(), 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ content: importFileContent }) });
                 const d = await r.json();
                 if (r.ok) {
                     if (msgEl) msgEl.innerHTML = '';
@@ -2092,7 +2077,7 @@ VIEWS['settings-import-export'] = {
             if(msgEl) msgEl.innerHTML = '';
             if(statusEl) statusEl.textContent = 'Importing... this may take a moment for large files.';
             try {
-                const r = await fetch(`${API_URL}?action=import_comments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ csrf_token: AdminAuth.getCsrfToken(), content: importFileContent }) });
+                const r = await fetch(`${API_URL}?action=import_comments`, { method: 'POST', headers: { 'X-CSRF-Token': AdminAuth.getCsrfToken(), 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ content: importFileContent }) });
                 const d = await r.json();
                 if(statusEl) statusEl.textContent = '';
                 if(r.ok) {
