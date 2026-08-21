@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS comments (
     status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'spam', 'deleted')),
     ip_address TEXT,
     user_agent TEXT,
+    author_role TEXT NOT NULL DEFAULT 'user',
     FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
 );
 
@@ -79,9 +80,10 @@ CREATE TABLE IF NOT EXISTS votes (
     comment_id INTEGER NOT NULL,
     ip_address TEXT NOT NULL,
     reaction_type TEXT NOT NULL DEFAULT 'heart',
+    author_role TEXT DEFAULT 'user',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
-    UNIQUE(comment_id, ip_address, reaction_type)
+    UNIQUE(comment_id, ip_address, reaction_type, author_role)
 );
 
 CREATE INDEX IF NOT EXISTS idx_votes_comment ON votes(comment_id);
