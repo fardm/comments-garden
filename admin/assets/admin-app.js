@@ -1279,6 +1279,11 @@ VIEWS['settings-general'] = {
         .toggle-slider:before { position:absolute; content:""; height:20px; width:20px; left:3px; bottom:3px; background-color:white; border-radius:50%; transition:.3s; }
         input:checked+.toggle-slider { background-color:#4a90e2; }
         input:checked+.toggle-slider:before { transform:translateX(20px); }
+        .settings-toast{position:fixed;bottom:1.5rem;z-index:9999;padding:.6rem 1.2rem;border-radius:6px;font-size:.88rem;font-weight:500;pointer-events:none;opacity:0;transform:translateY(8px);transition:opacity .3s ease,transform .3s ease;box-shadow:0 2px 8px rgba(0,0,0,.12);}
+        .settings-toast.show{opacity:1;transform:translateY(0);}
+        .settings-toast.success{background:var(--success,#28a745);color:#fff;}
+        .settings-toast.error{background:var(--red,#dc3545);color:#fff;}
+        html[dir="rtl"] .settings-toast{right:auto;left:1.5rem;}html:not([dir="rtl"]) .settings-toast{right:1.5rem;left:auto;}
     `,
     html: () => `
         <div class="container">
@@ -1287,7 +1292,6 @@ VIEWS['settings-general'] = {
             <div class="util-card" style="margin-bottom:1.5rem;">
                 <div class="util-card-header"><span class="icon">💬</span><h2>Comments &amp; Moderation</h2></div>
                 <div class="util-card-body">
-                    <div id="settings-message"></div>
                     <div class="setting-row">
                         <div class="setting-label"><strong>Require Moderation</strong><span>New comments must be approved before appearing</span></div>
                         <label class="toggle-switch"><input type="checkbox" id="setting-require-moderation"><span class="toggle-slider"></span></label>
@@ -1371,8 +1375,29 @@ VIEWS['settings-general'] = {
             'setting-admin-name', 'setting-admin-email', 'setting-admin-url'
         ];
 
+        // ── Toast notification (single reused element) ────────────────────────
+        let _toastEl = null;
+        let _toastTimer = null;
+
+        function showToast(message, type) {
+            if (!_toastEl) {
+                _toastEl = document.createElement('div');
+                _toastEl.className = 'settings-toast';
+                document.body.appendChild(_toastEl);
+            }
+            if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+            _toastEl.textContent = message;
+            _toastEl.className = 'settings-toast ' + (type || 'success');
+            // Force reflow so the transition restarts if the same class is applied
+            void _toastEl.offsetHeight;
+            _toastEl.classList.add('show');
+            _toastTimer = setTimeout(() => {
+                _toastEl.classList.remove('show');
+                _toastTimer = null;
+            }, type === 'error' ? 4000 : 2500);
+        }
+
         async function loadSettings() {
-            const msgEl = document.getElementById('settings-message');
             try {
                 // Load settings (moderation, sort, admin profile)
                 const sr = await fetch(`${API_URL}?action=get_settings`, { credentials: 'include' });
@@ -1404,7 +1429,6 @@ VIEWS['settings-general'] = {
         });
 
         async function saveSettings() {
-            const msgEl = document.getElementById('settings-message');
             try {
                 await AdminAuth.ensureCsrfToken();
 
@@ -1453,21 +1477,26 @@ VIEWS['settings-general'] = {
                 });
 
                 const [settingsRes, configRes] = await Promise.all([settingsReq, configReq]);
-                const configData = await configRes.json();
 
                 if (settingsRes.ok && configRes.ok) {
-                    msgEl.innerHTML = '<div class="message success">Settings saved.</div>';
-                    setTimeout(() => { if (msgEl) msgEl.innerHTML = ''; }, 2500);
+                    showToast('\u2713 Settings saved', 'success');
                 } else {
-                    msgEl.innerHTML = `<div class="message error">${configData.error || 'Failed to save settings'}</div>`;
+                    const errData = await configRes.json().catch(() => ({}));
+                    showToast('\u26a0 Failed to save settings', 'error');
                 }
             } catch (e) {
-                msgEl.innerHTML = '<div class="message error">Network error</div>';
+                showToast('\u26a0 Failed to save settings', 'error');
             }
         }
 
         hoistToWindow({ saveSettings });
         loadSettings();
+
+        // Cleanup: remove toast element on view unmount
+        return () => {
+            if (_toastTimer) clearTimeout(_toastTimer);
+            if (_toastEl) { _toastEl.remove(); _toastEl = null; }
+        };
     }
 };
 
