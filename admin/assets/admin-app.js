@@ -253,6 +253,67 @@ VIEWS['comments'] = {
         .pagination-bar button.pg-active{background:var(--primary);color:white;border-color:var(--primary);}
         .pagination-bar .pg-info{font-size:.82rem;color:var(--body-text);opacity:.7;margin-left:.5rem;}
         @media(max-width:768px){.comments-controls{flex-wrap:wrap;} .comments-search-wrap{min-width:100%;}}
+
+        .admin-comment-card{background:var(--on-background);border:1px solid var(--lightgray);border-radius:8px;padding:1.25rem 1.5rem;transition:box-shadow .2s;}
+        .admin-comment-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.06);}
+        .admin-comment-card.is-deleted{opacity:.55;}
+        .admin-comment-card.is-admin{border-left:3px solid var(--primary);}
+
+        .acc-header{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:.65rem;}
+        .acc-header-left{display:flex;align-items:center;gap:.75rem;min-width:0;flex:1;}
+        .acc-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.95rem;font-weight:700;color:#fff;flex-shrink:0;text-transform:uppercase;}
+        .acc-user-info{min-width:0;}
+        .acc-author{font-weight:600;font-size:.95rem;color:var(--body-text);display:block;line-height:1.3;}
+        .acc-author a{color:var(--body-text);text-decoration:none;}
+        .acc-author a:hover{text-decoration:underline;color:var(--primary);}
+        .acc-email{font-size:.8rem;color:var(--body-text);opacity:.55;display:block;line-height:1.3;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px;}
+        .acc-header-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0;}
+
+        .acc-status-badge{display:inline-block;padding:.2rem .6rem;border-radius:4px;font-size:.75rem;font-weight:600;text-transform:capitalize;white-space:nowrap;}
+        .acc-status-badge.badge-pending{background:#ffc107;color:#333;}
+        .acc-status-badge.badge-approved{background:#28a745;color:#fff;}
+        .acc-status-badge.badge-spam{background:#dc3545;color:#fff;}
+        .acc-status-badge.badge-deleted{background:#6c757d;color:#fff;}
+
+        .acc-menu-wrap{position:relative;}
+        .acc-menu-btn{background:transparent;border:none;color:var(--body-text);cursor:pointer;padding:.35rem;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:background .15s;opacity:.55;}
+        .acc-menu-btn:hover{background:var(--lightgray);opacity:1;}
+        .acc-menu-btn svg{width:18px;height:18px;}
+        .acc-dropdown{position:absolute;right:0;top:calc(100% + 4px);background:var(--on-background);border:1px solid var(--lightgray);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:180px;z-index:100;padding:.35rem 0;opacity:0;transform:translateY(-4px) scale(.98);pointer-events:none;transition:opacity .12s,transform .12s;}
+        .acc-menu-wrap.open .acc-dropdown{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;}
+        .acc-dropdown-item{display:flex;align-items:center;gap:.6rem;width:100%;padding:.5rem .85rem;border:none;background:transparent;color:var(--body-text);font-size:.88rem;cursor:pointer;text-align:left;transition:background .12s;font-family:inherit;}
+        .acc-dropdown-item:hover{background:var(--lightgray);}
+        .acc-dropdown-item svg{width:15px;height:15px;flex-shrink:0;opacity:.65;}
+        .acc-dropdown-item.danger{color:var(--red);}
+        .acc-dropdown-item.danger svg{opacity:.8;}
+        .acc-dropdown-sep{height:1px;background:var(--lightgray);margin:.3rem 0;}
+
+        .acc-meta-row{display:flex;flex-wrap:wrap;gap:.65rem 1.25rem;margin-bottom:.75rem;font-size:.8rem;color:var(--body-text);opacity:.5;}
+        .acc-meta-item{display:flex;align-items:center;gap:.3rem;white-space:nowrap;}
+        .acc-meta-item svg{width:13px;height:13px;flex-shrink:0;opacity:.7;}
+        .acc-meta-item a{color:var(--body-text) !important;opacity:1 !important;text-decoration:none !important;}
+        .acc-meta-item a:hover{text-decoration:underline !important;}
+        .acc-reply-to{font-size:.8rem;color:var(--body-text);opacity:.5;margin-bottom:.5rem;}
+
+        .acc-content{margin-bottom:.75rem;line-height:1.65;color:var(--body-text);font-size:.93rem;unicode-bidi:plaintext;word-break:break-word;}
+
+        .acc-reactions{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.75rem;}
+        .acc-reaction-pill{display:inline-flex;align-items:center;gap:.25rem;padding:.25rem .6rem;border:1px solid var(--lightgray);border-radius:999px;font-size:.85rem;background:var(--on-background);color:var(--body-text);transition:border-color .15s,background .15s;}
+        .acc-reaction-pill:hover{border-color:var(--gray);}
+        .acc-reaction-pill .rp-emoji{font-style:normal;line-height:1;}
+        .acc-reaction-pill .rp-count{font-size:.8rem;min-width:1ch;}
+
+        .acc-actions-row{display:flex;align-items:center;gap:.5rem;padding-top:.5rem;border-top:1px solid var(--lightgray);}
+        .acc-reply-btn{display:inline-flex;align-items:center;gap:.35rem;padding:.35rem .75rem;border:1px solid var(--lightgray);border-radius:6px;background:transparent;color:var(--body-text);font-size:.85rem;cursor:pointer;transition:all .15s;font-family:inherit;opacity:.7;}
+        .acc-reply-btn:hover{background:var(--lightgray);opacity:1;border-color:var(--gray);}
+        .acc-reply-btn svg{width:14px;height:14px;}
+
+        @media(max-width:768px){
+            .admin-comment-card{padding:1rem;}
+            .acc-email{max-width:180px;}
+            .acc-meta-row{gap:.4rem .75rem;}
+            .acc-header{flex-wrap:wrap;}
+        }
     `,
     html: () => `
         <div class="container">
@@ -379,6 +440,24 @@ VIEWS['comments'] = {
             }
         }
 
+        // Avatar color helper: deterministic color from name
+        const AVATAR_COLORS = ['#4a90e2','#28a745','#e67e22','#e74c3c','#9b59b6','#1abc9c','#e91e63','#00bcd4','#ff9800','#607d8b'];
+        function getAvatarColor(name) {
+            let h = 0;
+            for (let i = 0; i < (name || '').length; i++) h = ((h << 5) - h + name.charCodeAt(i)) | 0;
+            return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+        }
+
+        // Toggle three-dot dropdown
+        function toggleCommentMenu(id) {
+            const wrap = document.getElementById(`acc-menu-${id}`);
+            if (!wrap) return;
+            const isOpen = wrap.classList.contains('open');
+            // Close all other open menus first
+            document.querySelectorAll('.acc-menu-wrap.open').forEach(el => el.classList.remove('open'));
+            if (!isOpen) wrap.classList.add('open');
+        }
+
         function displayComments(comments) {
             const container = document.getElementById('comments-list');
             if (!container) return;
@@ -389,32 +468,85 @@ VIEWS['comments'] = {
             }
             container.innerHTML = comments.map(comment => {
                 const votes = comment.votes_by_reaction_type || {};
-                const reactionSummary = reactionDefs
-                    .filter(x => (votes[x.type] || 0) > 0)
-                    .map(x => `${x.emoji} ${votes[x.type]}`).join('&nbsp;&nbsp;');
                 const isDeleted = comment.status === 'deleted';
+                const isSpam = comment.status === 'spam';
+                const isApproved = comment.status === 'approved';
+                const name = comment.author_name || 'A';
+                const initial = name.charAt(0);
+                const avatarColor = getAvatarColor(name);
+                const escapedPageUrl = escapeHtml(comment.page_url || '').replace(/'/g, "\\'");
+
+                // Build reaction pills (same as frontend)
+                const reactionPills = reactionDefs
+                    .filter(x => (votes[x.type] || 0) > 0)
+                    .map(x => `<span class="acc-reaction-pill"><span class="rp-emoji">${x.emoji}</span><span class="rp-count">${votes[x.type]}</span></span>`)
+                    .join('');
+
+                // Build dropdown menu items
+                const menuItems = [];
+                menuItems.push(`<button class="acc-dropdown-item" onclick="startCommentEdit(${comment.id})"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>`);
+                if (!isDeleted && !isApproved) {
+                    menuItems.push(`<button class="acc-dropdown-item" onclick="moderateComment(${comment.id}, 'approved')"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Approve</button>`);
+                }
+                if (!isDeleted && !isSpam) {
+                    menuItems.push(`<button class="acc-dropdown-item" onclick="moderateComment(${comment.id}, 'spam')"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Mark as Spam</button>`);
+                }
+                if (isDeleted) {
+                    menuItems.push(`<button class="acc-dropdown-item" onclick="restoreComment(${comment.id})"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>Restore</button>`);
+                    menuItems.push(`<div class="acc-dropdown-sep"></div>`);
+                    menuItems.push(`<button class="acc-dropdown-item danger" onclick="permanentDelete(${comment.id})"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete Permanently</button>`);
+                }
+                if (!isDeleted) {
+                    menuItems.push(`<div class="acc-dropdown-sep"></div>`);
+                    menuItems.push(`<button class="acc-dropdown-item danger" onclick="deleteComment(${comment.id})"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</button>`);
+                }
+
+                const isAdminComment = comment.author_role === 'admin';
+
                 return `
-                <div class="comment-item" id="comment-${comment.id}" style="opacity:${isDeleted ? '.55' : '1'};">
-                    <div class="comment-meta">
-                        <span class="comment-author">${escapeHtml(comment.author_name)}</span>
-                        <span>${escapeHtml(comment.author_email || '')}</span>
-                        ${comment.author_url ? `<a href="${escapeHtml(comment.author_url)}" target="_blank">Website</a>` : ''}
-                        <span>${formatDate(comment.created_at)}</span>
-                        <span class="badge badge-${comment.status}">${comment.status}</span>
+                <div class="admin-comment-card${isDeleted ? ' is-deleted' : ''}${isAdminComment ? ' is-admin' : ''}" id="comment-${comment.id}">
+                    <div class="acc-header">
+                        <div class="acc-header-left">
+                            <div class="acc-avatar" style="background:${avatarColor}">${escapeHtml(initial)}</div>
+                            <div class="acc-user-info">
+                                ${comment.author_url
+                                    ? `<a class="acc-author" href="${escapeHtml(comment.author_url)}" target="_blank" rel="nofollow noopener">${escapeHtml(name)}</a>`
+                                    : `<span class="acc-author">${escapeHtml(name)}</span>`}
+                                <span class="acc-email">${escapeHtml(comment.author_email || '')}</span>
+                            </div>
+                        </div>
+                        <div class="acc-header-right">
+                            <span class="acc-status-badge badge-${comment.status}">${comment.status}</span>
+                            <div class="acc-menu-wrap" id="acc-menu-${comment.id}">
+                                <button class="acc-menu-btn" onclick="toggleCommentMenu(${comment.id})" aria-label="Actions">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                                </button>
+                                <div class="acc-dropdown">${menuItems.join('')}</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="body-text"><strong>Page:</strong> ${renderPageUrl(comment.page_url)}</div>
-                    <div class="body-text"><strong>IP:</strong> ${escapeHtml(comment.ip_address || 'N/A')}</div>
-                    ${comment.parent_id ? `<div class="body-text"><strong>Reply to:</strong> Comment #${comment.parent_id}</div>` : ''}
-                    <div class="comment-content" dir="auto" id="comment-content-${comment.id}">${escapeHtml(comment.content)}</div>
-                    ${reactionSummary ? `<div class="body-text"><strong>Reactions:</strong> ${reactionSummary}</div>` : ''}
-                    <div class="comment-actions">
-                        <button class="btn btn-secondary btn-sm" onclick="startCommentEdit(${comment.id})">Edit</button>
-                        <button class="btn btn-primary btn-sm" onclick="showReplyForm(${comment.id}, '${escapeHtml(comment.page_url)}')">Reply</button>
-                        ${!isDeleted && comment.status !== 'approved' ? `<button class="btn btn-success btn-sm" onclick="moderateComment(${comment.id}, 'approved')">Approve</button>` : ''}
-                        ${!isDeleted && comment.status !== 'spam' ? `<button class="btn btn-warning btn-sm" onclick="moderateComment(${comment.id}, 'spam')">Mark as Spam</button>` : ''}
-                        ${isDeleted ? `<button class="btn btn-success btn-sm" onclick="restoreComment(${comment.id})"><i data-lucide="undo-2" style="width:13px;height:13px;"></i> Restore</button>` : ''}
-                        ${isDeleted ? `<button class="btn btn-danger btn-sm" onclick="permanentDelete(${comment.id})"><i data-lucide="trash-2" style="width:13px;height:13px;"></i> Delete Permanently</button>` : ''}
-                        ${!isDeleted ? `<button class="btn btn-danger btn-sm" onclick="deleteComment(${comment.id})"><i data-lucide="trash-2" style="width:13px;height:13px;"></i> Delete</button>` : ''}
+                    <div class="acc-meta-row">
+                        <span class="acc-meta-item">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            ${renderPageUrl(comment.page_url)}
+                        </span>
+                        <span class="acc-meta-item">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            ${formatDate(comment.created_at)}
+                        </span>
+                        <span class="acc-meta-item">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                            ${escapeHtml(comment.ip_address || 'N/A')}
+                        </span>
+                    </div>
+                    ${comment.parent_id ? `<div class="acc-reply-to">Reply to comment #${comment.parent_id}</div>` : ''}
+                    <div class="acc-content" dir="auto" id="comment-content-${comment.id}">${escapeHtml(comment.content)}</div>
+                    ${reactionPills ? `<div class="acc-reactions">${reactionPills}</div>` : ''}
+                    <div class="acc-actions-row">
+                        <button class="acc-reply-btn" onclick="showReplyForm(${comment.id}, '${escapedPageUrl}')">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                            Reply
+                        </button>
                     </div>
                     <div id="reply-form-${comment.id}" style="display:none;margin-top:1rem;padding:1rem;background:var(--on-background);border:1px solid var(--gray);border-radius:4px;">
                         <div style="margin-bottom:.5rem;color:var(--body-text);"><strong>Reply to comment #${comment.id}</strong></div>
@@ -627,10 +759,23 @@ VIEWS['comments'] = {
         hoistToWindow({
             switchTab, reloadComments, commentsChangePage,
             moderateComment, deleteComment, restoreComment, permanentDelete,
-            startCommentEdit, showReplyForm, hideReplyForm, submitReply
+            startCommentEdit, showReplyForm, hideReplyForm, submitReply,
+            toggleCommentMenu
         });
+
+        // Close dropdown menus on outside click
+        function handleOutsideClick(e) {
+            if (!e.target.closest('.acc-menu-wrap')) {
+                document.querySelectorAll('.acc-menu-wrap.open').forEach(el => el.classList.remove('open'));
+            }
+        }
+        document.addEventListener('click', handleOutsideClick);
+
         loadCounts();
         loadComments();
+
+        // Cleanup: remove outside-click handler on view unmount
+        return () => document.removeEventListener('click', handleOutsideClick);
     },
 };
 

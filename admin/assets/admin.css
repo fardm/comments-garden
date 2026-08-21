@@ -395,7 +395,7 @@
 }
 
 .comment-item {
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--lightgray);
     padding: 1.5rem 0;
 }
 
@@ -408,7 +408,7 @@
     gap: 1rem;
     margin-bottom: 0.5rem;
     font-size: 0.9rem;
-    color: #666;
+    color: var(--body-text);
     flex-wrap: wrap;
 }
 
@@ -422,7 +422,7 @@
     padding: 1rem;
     background: var(--light);
     color: var(--body-text);
-    border-left: 3px solid #4a90e2;
+    border-left: 3px solid var(--primary);
     unicode-bidi: plaintext;
 }
 
