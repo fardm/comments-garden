@@ -61,6 +61,7 @@ class CommentSystem {
         this.containerId = options.containerId || 'comments-container';
         this.closed = options.closed || false;
         this.language = options.language || COMMENTS_DEFAULT_LANGUAGE;
+        this.enabledReactions = null; // null = all enabled (fallback)
         this.container = document.getElementById(this.containerId);
         this._outsideClickHandlerBound = false;
         this._setupOutsideClickHandler();
@@ -109,7 +110,7 @@ class CommentSystem {
     }
 
     getReactionDefinitions() {
-        return [
+        const all = [
             { type: 'thumbsup',  emoji: '👍', label: this.t('reactions.thumbsup') },
             { type: 'lightbulb', emoji: '👎', label: this.t('reactions.lightbulb') },
             { type: 'pray',      emoji: '🙏', label: this.t('reactions.pray') },
@@ -121,6 +122,10 @@ class CommentSystem {
             { type: 'funny',     emoji: '😄', label: this.t('reactions.funny') },
             { type: 'neutral',   emoji: '😐', label: this.t('reactions.neutral') },
         ];
+        if (this.enabledReactions) {
+            return all.filter(r => this.enabledReactions.includes(r.type));
+        }
+        return all;
     }
 
     getCommentReactionCounts(comment) {
@@ -412,8 +417,23 @@ class CommentSystem {
     }
 
     async init() {
+        await this.fetchEnabledReactions();
         this.render();
         await this.loadComments();
+    }
+
+    async fetchEnabledReactions() {
+        try {
+            const response = await fetch(`${this.apiUrl}?action=widget_config`);
+            if (response.ok) {
+                const data = await response.json();
+                if (Array.isArray(data.enabled_reactions) && data.enabled_reactions.length > 0) {
+                    this.enabledReactions = data.enabled_reactions;
+                }
+            }
+        } catch (e) {
+            // Fall back to all reactions enabled
+        }
     }
 
     // رندر

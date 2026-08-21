@@ -24,6 +24,7 @@ const NAV_ITEMS = [
     { key: 'analytics',      label: 'Analytics',      icon: 'bar-chart-2' },
     { key: 'settings',       label: 'Settings',       icon: 'settings', isParent: true, children: [
         { key: 'settings-general',       label: 'General' },
+        { key: 'settings-reactions',     label: 'Reactions' },
         { key: 'settings-configuration', label: 'Configuration' },
         { key: 'settings-database',      label: 'Database' },
         { key: 'settings-notifications', label: 'Notifications' },
@@ -1143,6 +1144,141 @@ VIEWS['settings-general'] = {
 
         hoistToWindow({ saveSettings });
         loadSettings();
+    }
+};
+
+VIEWS['settings-reactions'] = {
+    title: 'Reactions',
+    css: `
+        .util-card { background:var(--on-background); border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,.1); overflow:hidden; }
+        .util-card-header { padding:1rem 1.5rem; border-bottom:1px solid var(--gray,#e9ecef); display:flex; align-items:center; gap:.6rem; }
+        .util-card-header h2 { font-size:1.1rem; color:var(--body-text,#333); }
+        .util-card-header .icon { font-size:1.2rem; }
+        .util-card-body { padding:1.5rem; }
+        .setting-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; padding:.75rem 0; border-bottom:1px solid var(--gray,#f0f0f0); }
+        .setting-row:last-of-type { border-bottom:none; }
+        .setting-label { flex:1 1 200px; }
+        .setting-label strong { color:var(--body-text); display:block; font-size:.95rem; }
+        .setting-label span { font-size:.82rem; color:var(--body-text); opacity:.8; }
+        .toggle-switch { position:relative; display:inline-block; width:46px; height:26px; flex-shrink:0; }
+        .toggle-switch input { opacity:0; width:0; height:0; }
+        .toggle-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; border-radius:26px; transition:.3s; }
+        .toggle-slider:before { position:absolute; content:""; height:20px; width:20px; left:3px; bottom:3px; background-color:white; border-radius:50%; transition:.3s; }
+        input:checked+.toggle-slider { background-color:#4a90e2; }
+        input:checked+.toggle-slider:before { transform:translateX(20px); }
+        .reaction-preview { font-size:1.3rem; margin-right:.5rem; }
+        .toggle-switch.is-loading .toggle-slider { opacity:.5; pointer-events:none; }
+        .reaction-error { font-size:.82rem; color:#dc3545; margin-top:.3rem; display:none; }
+    `,
+    html: () => `
+        <div class="container">
+            <h2 style="margin-bottom: 1.5rem;">Reactions</h2>
+            <div class="util-card">
+                <div class="util-card-header"><span class="icon">😀</span><h2>Configure Reactions</h2></div>
+                <div class="util-card-body">
+                    <p style="color:var(--body-text);opacity:.7;font-size:.9rem;margin-bottom:.75rem;">Enable or disable reactions that visitors can use. Changes take effect immediately.</p>
+                    <div id="reactions-settings-list"><p style="color:var(--body-text);opacity:.6;">Loading…</p></div>
+                </div>
+            </div>
+        </div>
+    `,
+    init({ hoistToWindow }) {
+        const ALL_REACTIONS = [
+            { type: 'thumbsup',  emoji: '👍', label: 'Thumbs Up' },
+            { type: 'lightbulb', emoji: '👎', label: 'Thumbs Down' },
+            { type: 'pray',      emoji: '🙏', label: 'Pray' },
+            { type: 'ok',        emoji: '👌', label: 'OK' },
+            { type: 'fire',      emoji: '🔥', label: 'Fire' },
+            { type: 'heart',     emoji: '❤️', label: 'Heart' },
+            { type: 'frown',     emoji: '☹️', label: 'Frown' },
+            { type: 'rage',      emoji: '😡', label: 'Rage' },
+            { type: 'funny',     emoji: '😄', label: 'Funny' },
+            { type: 'neutral',   emoji: '😐', label: 'Neutral' },
+        ];
+
+        async function loadReactionsSettings() {
+            const listEl = document.getElementById('reactions-settings-list');
+            if (!listEl) return;
+            try {
+                const r = await fetch(`${API_URL}?action=get_settings`, { credentials: 'include' });
+                const d = await r.json();
+                let enabled = ALL_REACTIONS.map(r => r.type);
+                if (d.settings && d.settings.enabled_reactions) {
+                    try {
+                        const parsed = JSON.parse(d.settings.enabled_reactions);
+                        if (Array.isArray(parsed) && parsed.length > 0) enabled = parsed;
+                    } catch {}
+                }
+                renderList(enabled);
+            } catch (e) {
+                listEl.innerHTML = '<p style="color:#dc3545;">Failed to load reactions settings.</p>';
+            }
+        }
+
+        function renderList(enabled) {
+            const listEl = document.getElementById('reactions-settings-list');
+            if (!listEl) return;
+            listEl.innerHTML = ALL_REACTIONS.map(r => {
+                const isOn = enabled.includes(r.type);
+                return `
+                    <div class="setting-row">
+                        <div class="setting-label">
+                            <span class="reaction-preview">${r.emoji}</span>
+                            <strong style="display:inline;">${r.label}</strong>
+                            <span style="margin-left:.5rem;font-size:.8rem;color:var(--body-text);opacity:.5;">${r.type}</span>
+                        </div>
+                        <label class="toggle-switch" id="toggle-wrap-${r.type}">
+                            <input type="checkbox" id="toggle-${r.type}" ${isOn ? 'checked' : ''} onchange="toggleReaction('${r.type}')">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <div class="reaction-error" id="error-${r.type}"></div>
+                    </div>`;
+            }).join('');
+        }
+
+        async function toggleReaction(type) {
+            const cb = document.getElementById(`toggle-${type}`);
+            const wrap = document.getElementById(`toggle-wrap-${type}`);
+            const errEl = document.getElementById(`error-${type}`);
+            if (!cb) return;
+
+            const previousState = cb.checked;
+            wrap?.classList.add('is-loading');
+            if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+
+            // Build current enabled list from all checkboxes
+            const currentEnabled = ALL_REACTIONS
+                .filter(r => document.getElementById(`toggle-${r.type}`)?.checked)
+                .map(r => r.type);
+
+            try {
+                await AdminAuth.ensureCsrfToken();
+                const r = await fetch(`${API_URL}?action=save_settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        csrf_token: AdminAuth.getCsrfToken(),
+                        enabled_reactions: JSON.stringify(currentEnabled)
+                    })
+                });
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.error || 'Save failed');
+            } catch (e) {
+                // Revert toggle
+                cb.checked = !previousState;
+                if (errEl) {
+                    errEl.textContent = e.message || 'Failed to save';
+                    errEl.style.display = 'block';
+                }
+                setTimeout(() => { if (errEl) errEl.style.display = 'none'; }, 4000);
+            } finally {
+                wrap?.classList.remove('is-loading');
+            }
+        }
+
+        hoistToWindow({ toggleReaction });
+        loadReactionsSettings();
     }
 };
 

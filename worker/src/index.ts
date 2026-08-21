@@ -51,15 +51,31 @@ const handler = async (c: any) => {
   const userAgent = c.req.header('User-Agent') || ''
 
   try {
+
+    // Helper: parse enabled reactions from settings (all enabled if unset)
+    const getEnabledReactions = async (): Promise<string[]> => {
+      const ALL_REACTIONS = ['thumbsup','lightbulb','pray','ok','fire','heart','frown','rage','funny','neutral']
+      const config = await settings.getAllSettings()
+      if (config.enabled_reactions) {
+        try {
+          const parsed = JSON.parse(config.enabled_reactions)
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed
+        } catch {}
+      }
+      return ALL_REACTIONS
+    }
+
     // ── Public Routes ─────────────────────────────────────────────
 
     if (method === 'GET' && action === 'widget_config') {
       const config = await settings.getAllSettings()
+      const enabledReactions = await getEnabledReactions()
       return c.json({
         require_moderation: config.require_moderation === 'true',
         allow_guest_comments: config.allow_guest_comments === 'true',
         max_comment_length: parseInt(config.max_comment_length || '5000'),
-        language: config.app_language || 'en'
+        language: config.app_language || 'en',
+        enabled_reactions: enabledReactions
       })
     }
 
@@ -124,6 +140,12 @@ const handler = async (c: any) => {
       if (await ratelimit.isCommentRateLimited(ip)) return c.json({ error: "Too many comments. Please try again later." }, 429)
       if (await ratelimit.isVoteRateLimited(ip)) return c.json({ error: "Too many votes. Please try again later." }, 429)
 
+      // Validate reaction is enabled
+      const enabledReactions = await getEnabledReactions()
+      if (!enabledReactions.includes(body.reaction_type)) {
+        return c.json({ error: 'Reaction type is not enabled' }, 400)
+      }
+
       const result = await reactions.togglePostReaction(body.page_url || body.url, ip, body.reaction_type)
       return c.json(result)
     }
@@ -132,6 +154,12 @@ const handler = async (c: any) => {
       const body = await c.req.json()
       if (await ratelimit.isCommentRateLimited(ip)) return c.json({ error: "Too many comments. Please try again later." }, 429)
       if (await ratelimit.isVoteRateLimited(ip)) return c.json({ error: "Too many votes. Please try again later." }, 429)
+
+      // Validate reaction is enabled
+      const enabledReactions = await getEnabledReactions()
+      if (!enabledReactions.includes(body.reaction_type)) {
+        return c.json({ error: 'Reaction type is not enabled' }, 400)
+      }
 
       const result = await reactions.toggleVote(body.comment_id, ip, body.reaction_type)
       return c.json(result)
