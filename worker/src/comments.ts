@@ -177,6 +177,19 @@ export class CommentService {
   }
 
   async deleteComment(id: number) {
+    // Soft delete: set status to 'deleted' instead of removing from DB
+    await this.db.prepare("UPDATE comments SET status = 'deleted' WHERE id = ?").bind(id).run()
+    return { success: true }
+  }
+
+  async restoreComment(id: number) {
+    // Restore a soft-deleted comment back to 'pending' for re-review
+    await this.db.prepare("UPDATE comments SET status = 'pending' WHERE id = ? AND status = 'deleted'").bind(id).run()
+    return { success: true }
+  }
+
+  async permanentDeleteComment(id: number) {
+    // Permanently remove a comment from the database
     await this.db.prepare('DELETE FROM comments WHERE id = ?').bind(id).run()
     return { success: true }
   }

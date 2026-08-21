@@ -19,8 +19,7 @@
 // ── Navigation definition ─────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
-    { key: 'pending',        label: 'Pending',        icon: 'clock' },
-    { key: 'all',            label: 'All Comments',   icon: 'message-square' },
+    { key: 'comments',       label: 'Comments',       icon: 'message-square' },
     { key: 'post-reactions', label: 'Post Reactions', icon: 'smile' },
     { key: 'analytics',      label: 'Analytics',      icon: 'bar-chart-2' },
     { key: 'settings',       label: 'Settings',       icon: 'settings', isParent: true, children: [
@@ -162,7 +161,7 @@ async function mountView(key) {
 
 function currentHash() {
     const h = window.location.hash.slice(1);       // strip leading '#'
-    return VIEWS[h] ? h : 'pending';               // default to pending
+    return VIEWS[h] ? h : 'comments';               // default to comments
 }
 
 function handleHashChange() {
@@ -227,233 +226,150 @@ function renderPageUrl(pageUrl) {
 const VIEWS = {};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PENDING COMMENTS
 // ─────────────────────────────────────────────────────────────────────────────
-VIEWS['pending'] = {
-    title: 'Pending Comments',
-    css: ``,    /* no page-specific styles */
-    html: () => `
-        <div class="container">
-            <div class="comments-section">
-                <h2 style="margin-bottom: 1.5rem;">Pending Comments</h2>
-                <div id="pending-comments">
-                    <p class="no-comments">Loading...</p>
-                </div>
-            </div>
-        </div>`,
-
-    init({ hoistToWindow }) {
-        async function loadDashboard() {
-            await loadPendingComments();
-            loadPostReactionsStat();
-        }
-
-        async function loadPostReactionsStat() {
-            try {
-                const response = await fetch(`${API_URL}?action=post_reactions_summary`, { credentials: 'include' });
-                if (response.ok) {
-                    const data = await response.json();
-                    const el = document.getElementById('stat-post-reactions');
-                    if (el) el.textContent = data.total || 0;
-                }
-            } catch (e) {}
-        }
-
-        async function loadPendingComments() {
-            const container = document.getElementById('pending-comments');
-            if (!container) return;
-            try {
-                const response = await fetch(`${API_URL}?action=pending&limit=10000&_=${Date.now()}`, {
-                    credentials: 'include',
-                    cache: 'no-store',
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    displayPendingComments(data.comments);
-                } else {
-                    container.innerHTML = `<div class="message error">Error: ${data.error || 'Failed to load comments'}</div>`;
-                }
-            } catch (error) {
-                container.innerHTML = `<div class="message error">Network error: ${error.message}</div>`;
-            }
-        }
-
-        const reactionDefs = [
-            { type: 'thumbsup',  emoji: '👍' }, { type: 'lightbulb', emoji: '👎' },
-            { type: 'pray',      emoji: '🙏' }, { type: 'ok',        emoji: '👌' },
-            { type: 'fire',      emoji: '🔥' }, { type: 'heart',     emoji: '❤️' },
-            { type: 'frown',     emoji: '☹️' }, { type: 'rage',      emoji: '😡' },
-            { type: 'funny',     emoji: '😄' }, { type: 'neutral',   emoji: '😐' },
-        ];
-
-        function displayPendingComments(comments) {
-            const container = document.getElementById('pending-comments');
-            if (!container) return;
-            if (comments.length === 0) {
-                container.innerHTML = '<p class="no-comments">No pending comments</p>';
-                return;
-            }
-            container.innerHTML = comments.map(comment => {
-                const votes = comment.votes_by_reaction_type || {
-                    heart: comment.votes_heart || 0,
-                    thumbsup: comment.votes_thumbsup || 0,
-                    lightbulb: comment.votes_lightbulb || 0,
-                    funny: comment.votes_funny || 0,
-                };
-                const reactionSummary = reactionDefs
-                    .filter(r => (votes[r.type] || 0) > 0)
-                    .map(r => `${r.emoji} ${votes[r.type]}`)
-                    .join('&nbsp;&nbsp;');
-                return `
-                <div class="comment-item" id="comment-${comment.id}">
-                    <div class="comment-meta">
-                        <span class="comment-author">${escapeHtml(comment.author_name)}</span>
-                        <span>${escapeHtml(comment.author_email)}</span>
-                        ${comment.author_url ? `<a href="${escapeHtml(comment.author_url)}" target="_blank">Website</a>` : ''}
-                        <span>${formatDate(comment.created_at)}</span>
-                        <span class="badge badge-pending">Pending</span>
-                    </div>
-                    <div class="body-text"><strong>Page:</strong> ${renderPageUrl(comment.page_url)}</div>
-                    <div class="body-text"><strong>IP:</strong> ${escapeHtml(comment.ip_address || 'N/A')}</div>
-                    <div class="comment-content" dir="auto" id="comment-content-${comment.id}">${escapeHtml(comment.content)}</div>
-                    ${reactionSummary ? `<div class="body-text"><strong>Reactions:</strong> ${reactionSummary}</div>` : ''}
-                    <div class="comment-actions">
-                        <button class="btn btn-secondary" onclick="startCommentEdit(${comment.id})">Edit</button>
-                        <button class="btn btn-success" onclick="moderateComment(${comment.id}, 'approved')">Approve</button>
-                        <button class="btn btn-warning" onclick="moderateComment(${comment.id}, 'spam')">Mark as Spam</button>
-                        <button class="btn btn-danger" onclick="deleteComment(${comment.id})">Delete</button>
-                    </div>
-                </div>`;
-            }).join('');
-        }
-
-        async function moderateComment(id, status) {
-            const commentEl = document.getElementById(`comment-${id}`);
-            if (!commentEl) return;
-            const originalHTML = commentEl.innerHTML;
-            try {
-                await AdminAuth.ensureCsrfToken();
-                commentEl.style.opacity = '0.5';
-                commentEl.innerHTML = `<p style="text-align:center;padding:2rem;">Processing...</p>`;
-                const response = await fetch(`${API_URL}?action=moderate&id=${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
-                    credentials: 'include',
-                    body: JSON.stringify({ status, csrf_token: AdminAuth.getCsrfToken() }),
-                });
-                const result = await response.json();
-                if (response.ok) {
-                    commentEl.innerHTML = `<p style="text-align:center;padding:2rem;color:green;">✓ ${status === 'approved' ? 'Approved' : 'Marked as spam'}!</p>`;
-                    setTimeout(() => loadPendingComments(), 500);
-                } else {
-                    commentEl.style.opacity = '1';
-                    commentEl.innerHTML = originalHTML + `<p class="error" style="margin-top:1rem;">Failed: ${result.error || 'Unknown error'}</p>`;
-                }
-            } catch (error) {
-                commentEl.style.opacity = '1';
-                commentEl.innerHTML = originalHTML + '<p class="error" style="margin-top:1rem;">Network error</p>';
-            }
-        }
-
-        async function deleteComment(id) {
-            if (!confirm('Are you sure you want to delete this comment?')) return;
-            try {
-                await AdminAuth.ensureCsrfToken();
-                const response = await fetch(`${API_URL}?action=delete&id=${id}&csrf_token=${encodeURIComponent(AdminAuth.getCsrfToken())}`, {
-                    method: 'DELETE', credentials: 'include',
-                });
-                if (response.ok) loadPendingComments();
-            } catch (error) { console.error('Error deleting comment:', error); }
-        }
-
-        hoistToWindow({ moderateComment, deleteComment, startCommentEdit });
-        loadDashboard();
-    },
-};
-
-
+// COMMENTS (Tabbed: Pending / Approved / Spam / Deleted / All)
 // ─────────────────────────────────────────────────────────────────────────────
-// ALL COMMENTS
-// ─────────────────────────────────────────────────────────────────────────────
-VIEWS['all'] = {
-    title: 'All Comments',
+VIEWS['comments'] = {
+    title: 'Comments',
     css: `
-        .filters {
-            background: var(--on-background);
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-            display: flex;
-            gap: 0.75rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .filters select, .filters input[type="text"] {
-            padding: 0.6rem 0.75rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 0.95rem;
-        }
-        .filters select { background: white; flex-shrink: 0; }
-        @media (max-width: 768px) {
-            .filters { flex-direction: column; align-items: stretch; }
-        }`,
-
+        .comments-panel{background:var(--on-background);border-radius:8px;padding:1.5rem 1.75rem;}
+        .comments-tabs{display:flex;gap:0;border-bottom:2px solid var(--gray,#e0e0e0);overflow-x:auto;overflow-y:hidden;}
+        .comments-tab{padding:.6rem 1.1rem;font-size:.85rem;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--body-text);transition:all .2s;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-2px;display:flex;align-items:center;gap:.35rem;}
+        .comments-tab:hover{opacity:.85;}
+        .comments-tab.active{opacity:1;color:var(--primary);border-bottom-color:var(--primary);}
+        .comments-tab .tab-count{background:var(--gray,#e0e0e0);color:var(--body-text);font-size:.72rem;padding:.1rem .45rem;border-radius:10px;font-weight:700;min-width:1.3rem;text-align:center;}
+        .comments-tab.active .tab-count{background:var(--primary);color:white;}
+        .comments-controls{display:flex;gap:.5rem;align-items:center;margin:1.25rem 0;}
+        .comments-search-wrap{flex:1 1 0;min-width:180px;position:relative;display:flex;align-items:center;}
+        .comments-search-wrap .search-icon{position:absolute;left:.65rem;color:var(--body-text);opacity:.45;pointer-events:none;}
+        .comments-search-wrap input[type="text"]{width:100%;padding:.5rem .7rem .5rem 2rem;border:1px solid var(--gray,#ddd);border-radius:4px;font-size:.88rem;background:var(--on-background);color:var(--body-text);}
+        .comments-controls select{padding:.5rem .65rem;border:1px solid var(--gray,#ddd);border-radius:4px;font-size:.88rem;background:var(--on-background);color:var(--body-text);cursor:pointer;max-width:150px;min-width:0;flex-shrink:1;}
+        .comments-list{display:flex;flex-direction:column;gap:1rem;padding-top:.5rem;}
+        .pagination-bar{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:1.25rem;flex-wrap:wrap;}
+        .pagination-bar button{padding:.4rem .8rem;border:1px solid var(--gray,#ddd);border-radius:4px;background:var(--on-background);color:var(--body-text);font-size:.85rem;cursor:pointer;transition:all .15s;}
+        .pagination-bar button:hover:not(:disabled){border-color:var(--primary);color:var(--primary);}
+        .pagination-bar button:disabled{opacity:.4;cursor:not-allowed;}
+        .pagination-bar button.pg-active{background:var(--primary);color:white;border-color:var(--primary);}
+        .pagination-bar .pg-info{font-size:.82rem;color:var(--body-text);opacity:.7;margin-left:.5rem;}
+        @media(max-width:768px){.comments-controls{flex-wrap:wrap;} .comments-search-wrap{min-width:100%;}}
+    `,
     html: () => `
         <div class="container">
-            <div class="filters">
-                <select id="filter-status" onchange="applyFilters()">
-                    <option value="all">All Statuses</option>
-                    <option value="approved">Approved</option>
-                    <option value="pending">Pending</option>
-                    <option value="spam">Spam</option>
-                </select>
-                <input type="text" id="filter-search" placeholder="Search by name, email, URL, or content…"
-                       style="flex:1;min-width:200px;" onkeydown="if(event.key==='Enter') applyFilters();">
-                <button class="btn btn-primary" onclick="applyFilters()">Search</button>
-                <button class="btn btn-warning" onclick="clearFilters()">Clear</button>
-            </div>
-            <div class="comments-section">
-                <h2 style="margin-bottom:1.5rem;">All Comments</h2>
-                <div id="all-comments"><p class="no-comments">Loading...</p></div>
-                <div class="pagination" id="pagination"></div>
+            <div class="comments-panel">
+                <div class="comments-tabs" id="comment-tabs">
+                    <button class="comments-tab active" data-tab="pending" onclick="switchTab('pending')">
+                        <i data-lucide="clock" style="width:14px;height:14px;"></i> Pending <span class="tab-count" id="tab-count-pending">0</span>
+                    </button>
+                    <button class="comments-tab" data-tab="approved" onclick="switchTab('approved')">
+                        <i data-lucide="check-circle" style="width:14px;height:14px;"></i> Approved
+                    </button>
+                    <button class="comments-tab" data-tab="spam" onclick="switchTab('spam')">
+                        <i data-lucide="shield-alert" style="width:14px;height:14px;"></i> Spam
+                    </button>
+                    <button class="comments-tab" data-tab="deleted" onclick="switchTab('deleted')">
+                        <i data-lucide="trash-2" style="width:14px;height:14px;"></i> Trash
+                    </button>
+                    <button class="comments-tab" data-tab="all" onclick="switchTab('all')">
+                        <i data-lucide="layers" style="width:14px;height:14px;"></i> All
+                    </button>
+                </div>
+                <div class="comments-controls">
+                    <div class="comments-search-wrap">
+                        <i data-lucide="search" class="search-icon" style="width:15px;height:15px;"></i>
+                        <input type="text" id="c-search" placeholder="Search by name, email, or content…" onkeydown="if(event.key==='Enter')reloadComments()">
+                    </div>
+                    <select id="c-date" onchange="reloadComments()">
+                        <option value="all">All Time</option>
+                        <option value="day">Last Day</option>
+                        <option value="week">Last Week</option>
+                        <option value="month">Last Month</option>
+                        <option value="year">Last Year</option>
+                    </select>
+                    <select id="c-sort" onchange="reloadComments()">
+                        <option value="desc">Newest</option>
+                        <option value="asc">Oldest</option>
+                    </select>
+                </div>
+                <div class="comments-list" id="comments-list"><p class="no-comments">Loading…</p></div>
+                <div class="pagination-bar" id="comments-pagination"></div>
             </div>
         </div>`,
 
     init({ hoistToWindow }) {
-        let currentPage  = 1;
-        let currentTotal = 0;
-        const commentsPerPage = 50;
+        let activeTab = 'pending';
+        let currentPage = 1;
+        const perPage = 20;
+        let totalCount = 0;
+        let counts = { pending: 0, approved: 0, spam: 0, deleted: 0, all: 0 };
+
         const reactionDefs = [
-            { type: 'thumbsup',  emoji: '👍' }, { type: 'lightbulb', emoji: '👎' },
-            { type: 'pray',      emoji: '🙏' }, { type: 'ok',        emoji: '👌' },
-            { type: 'fire',      emoji: '🔥' }, { type: 'heart',     emoji: '❤️' },
-            { type: 'frown',     emoji: '☹️' }, { type: 'rage',      emoji: '😡' },
-            { type: 'funny',     emoji: '😄' }, { type: 'neutral',   emoji: '😐' },
+            { type: 'thumbsup', emoji: '👍' }, { type: 'lightbulb', emoji: '👎' },
+            { type: 'pray', emoji: '🙏' }, { type: 'ok', emoji: '👌' },
+            { type: 'fire', emoji: '🔥' }, { type: 'heart', emoji: '❤️' },
+            { type: 'frown', emoji: '☹️' }, { type: 'rage', emoji: '😡' },
+            { type: 'funny', emoji: '😄' }, { type: 'neutral', emoji: '😐' },
         ];
 
-        async function loadDashboard() {
-            await loadPage(1);
+        // Reply state
+        let replyingToId = null;
+        let replyingToPageUrl = null;
+        let adminProfileCache = null;
+
+        async function loadCounts() {
+            try {
+                const r = await fetch(`${API_URL}?action=comment_counts&_=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
+                if (r.ok) {
+                    counts = await r.json();
+                    updateTabCounts();
+                }
+            } catch (e) { console.error('Failed to load counts', e); }
         }
 
-        async function loadPage(page) {
-            currentPage = page;
-            const container = document.getElementById('all-comments');
+        function updateTabCounts() {
+            const el = document.getElementById('tab-count-pending');
+            if (el) el.textContent = counts.pending || 0;
+        }
+
+        function switchTab(tab) {
+            activeTab = tab;
+            currentPage = 1;
+            document.querySelectorAll('.comments-tab').forEach(t => {
+                t.classList.toggle('active', t.dataset.tab === tab);
+            });
+            reloadComments();
+        }
+
+        async function reloadComments() {
+            currentPage = 1;
+            await loadComments();
+        }
+
+        async function loadComments() {
+            const container = document.getElementById('comments-list');
             if (!container) return;
             container.innerHTML = '<p class="no-comments">Loading…</p>';
-            const status = document.getElementById('filter-status').value;
-            const search = document.getElementById('filter-search').value.trim();
-            const qs = new URLSearchParams({ action: 'all', limit: commentsPerPage, offset: (page - 1) * commentsPerPage });
-            if (status !== 'all') qs.set('status', status);
+
+            const search = document.getElementById('c-search')?.value?.trim() || '';
+            const dateFilter = document.getElementById('c-date')?.value || 'all';
+            const sort = document.getElementById('c-sort')?.value || 'desc';
+
+            const qs = new URLSearchParams({
+                action: 'all',
+                limit: perPage,
+                offset: (currentPage - 1) * perPage,
+                sort: sort,
+            });
+            if (activeTab !== 'all') qs.set('status', activeTab);
             if (search) qs.set('search', search);
+            if (dateFilter !== 'all') qs.set('date', dateFilter);
+
             try {
                 const r = await fetch(`${API_URL}?${qs}`, { credentials: 'include', cache: 'no-store' });
                 const data = await r.json();
                 if (r.ok) {
-                    currentTotal = data.pagination.total;
+                    totalCount = data.pagination.total;
                     displayComments(data.comments);
-                    renderPagination(data.pagination.total);
+                    renderPagination();
                 } else {
                     container.innerHTML = `<div class="message error">Error: ${data.error || 'Failed to load'}</div>`;
                 }
@@ -462,40 +378,25 @@ VIEWS['all'] = {
             }
         }
 
-        function applyFilters()  { loadPage(1); }
-        function applyStatusFilter(status) {
-            document.getElementById('filter-status').value = status;
-            document.getElementById('filter-search').value = '';
-            loadPage(1);
-            document.querySelector('.filters')?.scrollIntoView({ behavior: 'smooth' });
-        }
-        function clearFilters() {
-            document.getElementById('filter-status').value = 'all';
-            document.getElementById('filter-search').value = '';
-            loadPage(1);
-        }
-
         function displayComments(comments) {
-            const container = document.getElementById('all-comments');
+            const container = document.getElementById('comments-list');
             if (!container) return;
-            if (comments.length === 0) {
+            if (!comments.length) {
                 container.innerHTML = '<p class="no-comments">No comments found</p>';
-                document.getElementById('pagination').innerHTML = '';
+                document.getElementById('comments-pagination').innerHTML = '';
                 return;
             }
             container.innerHTML = comments.map(comment => {
-                const votes = comment.votes_by_reaction_type || {
-                    heart: comment.votes_heart || 0, thumbsup: comment.votes_thumbsup || 0,
-                    lightbulb: comment.votes_lightbulb || 0, funny: comment.votes_funny || 0,
-                };
+                const votes = comment.votes_by_reaction_type || {};
                 const reactionSummary = reactionDefs
                     .filter(x => (votes[x.type] || 0) > 0)
                     .map(x => `${x.emoji} ${votes[x.type]}`).join('&nbsp;&nbsp;');
+                const isDeleted = comment.status === 'deleted';
                 return `
-                <div class="comment-item" id="comment-${comment.id}">
+                <div class="comment-item" id="comment-${comment.id}" style="opacity:${isDeleted ? '.55' : '1'};">
                     <div class="comment-meta">
                         <span class="comment-author">${escapeHtml(comment.author_name)}</span>
-                        <span>${escapeHtml(comment.author_email)}</span>
+                        <span>${escapeHtml(comment.author_email || '')}</span>
                         ${comment.author_url ? `<a href="${escapeHtml(comment.author_url)}" target="_blank">Website</a>` : ''}
                         <span>${formatDate(comment.created_at)}</span>
                         <span class="badge badge-${comment.status}">${comment.status}</span>
@@ -506,30 +407,32 @@ VIEWS['all'] = {
                     <div class="comment-content" dir="auto" id="comment-content-${comment.id}">${escapeHtml(comment.content)}</div>
                     ${reactionSummary ? `<div class="body-text"><strong>Reactions:</strong> ${reactionSummary}</div>` : ''}
                     <div class="comment-actions">
-                        <button class="btn btn-secondary" onclick="startCommentEdit(${comment.id})">Edit</button>
-                        <button class="btn btn-primary" onclick="showReplyForm(${comment.id}, '${escapeHtml(comment.page_url)}')">Reply</button>
-                        ${comment.status !== 'approved' ? `<button class="btn btn-success" onclick="moderateComment(${comment.id}, 'approved')">Approve</button>` : ''}
-                        ${comment.status !== 'spam' ? `<button class="btn btn-warning" onclick="moderateComment(${comment.id}, 'spam')">Mark as Spam</button>` : ''}
-                        <button class="btn btn-danger" onclick="deleteComment(${comment.id})">Delete</button>
+                        <button class="btn btn-secondary btn-sm" onclick="startCommentEdit(${comment.id})">Edit</button>
+                        <button class="btn btn-primary btn-sm" onclick="showReplyForm(${comment.id}, '${escapeHtml(comment.page_url)}')">Reply</button>
+                        ${!isDeleted && comment.status !== 'approved' ? `<button class="btn btn-success btn-sm" onclick="moderateComment(${comment.id}, 'approved')">Approve</button>` : ''}
+                        ${!isDeleted && comment.status !== 'spam' ? `<button class="btn btn-warning btn-sm" onclick="moderateComment(${comment.id}, 'spam')">Mark as Spam</button>` : ''}
+                        ${isDeleted ? `<button class="btn btn-success btn-sm" onclick="restoreComment(${comment.id})"><i data-lucide="undo-2" style="width:13px;height:13px;"></i> Restore</button>` : ''}
+                        ${isDeleted ? `<button class="btn btn-danger btn-sm" onclick="permanentDelete(${comment.id})"><i data-lucide="trash-2" style="width:13px;height:13px;"></i> Delete Permanently</button>` : ''}
+                        ${!isDeleted ? `<button class="btn btn-danger btn-sm" onclick="deleteComment(${comment.id})"><i data-lucide="trash-2" style="width:13px;height:13px;"></i> Delete</button>` : ''}
                     </div>
                     <div id="reply-form-${comment.id}" style="display:none;margin-top:1rem;padding:1rem;background:var(--on-background);border:1px solid var(--gray);border-radius:4px;">
-                        <div style="margin-bottom:0.5rem;color:var(--body-text);"><strong>Reply to comment #${comment.id}</strong></div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.5rem;">
+                        <div style="margin-bottom:.5rem;color:var(--body-text);"><strong>Reply to comment #${comment.id}</strong></div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">
                             <div>
                                 <label style="font-size:.85rem;color:var(--body-text);opacity:.8;">Name</label>
-                                <input type="text" id="reply-name-${comment.id}" class="themed-control" style="width:100%;padding:0.5rem;" placeholder="Your name">
+                                <input type="text" id="reply-name-${comment.id}" class="themed-control" style="width:100%;padding:.5rem;" placeholder="Your name">
                             </div>
                             <div>
                                 <label style="font-size:.85rem;color:var(--body-text);opacity:.8;">Email</label>
-                                <input type="email" id="reply-email-${comment.id}" class="themed-control" style="width:100%;padding:0.5rem;" placeholder="your@email.com">
+                                <input type="email" id="reply-email-${comment.id}" class="themed-control" style="width:100%;padding:.5rem;" placeholder="your@email.com">
                             </div>
                         </div>
-                        <div style="margin-bottom:0.5rem;">
+                        <div style="margin-bottom:.5rem;">
                             <label style="font-size:.85rem;color:var(--body-text);opacity:.8;">Website (optional)</label>
-                            <input type="url" id="reply-url-${comment.id}" class="themed-control" style="width:100%;padding:0.5rem;" placeholder="https://yourwebsite.com">
+                            <input type="url" id="reply-url-${comment.id}" class="themed-control" style="width:100%;padding:.5rem;" placeholder="https://yourwebsite.com">
                         </div>
-                        <textarea id="reply-content-${comment.id}" class="themed-control" rows="3" style="width:100%;resize:vertical;padding:0.5rem;" placeholder="Write your reply..."></textarea>
-                        <div style="margin-top:0.5rem;display:flex;gap:0.5rem;">
+                        <textarea id="reply-content-${comment.id}" class="themed-control" rows="3" style="width:100%;resize:vertical;padding:.5rem;" placeholder="Write your reply..."></textarea>
+                        <div style="margin-top:.5rem;display:flex;gap:.5rem;">
                             <button class="btn btn-success btn-sm" onclick="submitReply(${comment.id})">Submit Reply</button>
                             <button class="btn btn-secondary btn-sm" onclick="hideReplyForm(${comment.id})">Cancel</button>
                             <span id="reply-status-${comment.id}" style="font-size:.85rem;color:var(--body-text,#888);opacity:.8;"></span>
@@ -537,6 +440,43 @@ VIEWS['all'] = {
                     </div>
                 </div>`;
             }).join('');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function renderPagination() {
+            const el = document.getElementById('comments-pagination');
+            if (!el) return;
+            const totalPages = Math.ceil(totalCount / perPage);
+            if (totalPages <= 1) { el.innerHTML = ''; return; }
+            let html = `<button onclick="commentsChangePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&#8249; Prev</button>`;
+            const maxVis = 5;
+            let start = Math.max(1, currentPage - Math.floor(maxVis / 2));
+            let end = Math.min(totalPages, start + maxVis - 1);
+            if (end - start < maxVis - 1) start = Math.max(1, end - maxVis + 1);
+            if (start > 1) {
+                html += `<button onclick="commentsChangePage(1)">1</button>`;
+                if (start > 2) html += `<span class="pg-info">…</span>`;
+            }
+            for (let i = start; i <= end; i++) {
+                html += `<button onclick="commentsChangePage(${i})" ${i === currentPage ? 'class="pg-active"' : ''}>${i}</button>`;
+            }
+            if (end < totalPages) {
+                if (end < totalPages - 1) html += `<span class="pg-info">…</span>`;
+                html += `<button onclick="commentsChangePage(${totalPages})">${totalPages}</button>`;
+            }
+            html += `<button onclick="commentsChangePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next &#8250;</button>`;
+            const s = (currentPage - 1) * perPage + 1;
+            const e = Math.min(currentPage * perPage, totalCount);
+            html += `<span class="pg-info">Showing ${s}–${e} of ${totalCount.toLocaleString()}</span>`;
+            el.innerHTML = html;
+        }
+
+        function commentsChangePage(page) {
+            const totalPages = Math.ceil(totalCount / perPage);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            loadComments();
+            document.querySelector('.comments-tabs')?.scrollIntoView({ behavior: 'smooth' });
         }
 
         async function moderateComment(id, status) {
@@ -546,7 +486,7 @@ VIEWS['all'] = {
             try {
                 await AdminAuth.ensureCsrfToken();
                 commentEl.style.opacity = '0.5';
-                commentEl.innerHTML = `<p style="text-align:center;padding:2rem;">Processing...</p>`;
+                commentEl.innerHTML = '<p style="text-align:center;padding:2rem;">Processing…</p>';
                 const r = await fetch(`${API_URL}?action=moderate&id=${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
@@ -556,7 +496,7 @@ VIEWS['all'] = {
                 const result = await r.json();
                 if (r.ok) {
                     commentEl.innerHTML = `<p style="text-align:center;padding:2rem;color:green;">✓ ${status === 'approved' ? 'Approved' : 'Marked as spam'}!</p>`;
-                    setTimeout(() => loadPage(currentPage), 500);
+                    setTimeout(() => { loadComments(); loadCounts(); }, 500);
                 } else {
                     commentEl.style.opacity = '1';
                     commentEl.innerHTML = originalHTML + `<p class="error" style="margin-top:1rem;">Failed: ${result.error || 'Unknown error'}</p>`;
@@ -568,60 +508,46 @@ VIEWS['all'] = {
         }
 
         async function deleteComment(id) {
-            if (!confirm('Are you sure you want to delete this comment?')) return;
+            if (!confirm('Move this comment to Trash?')) return;
             try {
                 await AdminAuth.ensureCsrfToken();
-                const r = await fetch(`${API_URL}?action=delete&id=${id}&csrf_token=${encodeURIComponent(AdminAuth.getCsrfToken())}`, {
+                const r = await fetch(`${API_URL}?action=delete&id=${id}`, {
                     method: 'DELETE', credentials: 'include',
                 });
-                if (r.ok) { loadPage(currentPage); }
-                else { alert(`Failed to delete: ${(await r.json()).error || 'Unknown error'}`); }
+                if (r.ok) { loadComments(); loadCounts(); }
+                else { alert(`Failed: ${(await r.json()).error || 'Unknown error'}`); }
             } catch (e) { alert('Network error while deleting comment'); }
         }
 
-        function renderPagination(total) {
-            const paginationEl = document.getElementById('pagination');
-            if (!paginationEl) return;
-            const totalPages = Math.ceil(total / commentsPerPage);
-            if (totalPages <= 1) { paginationEl.innerHTML = ''; return; }
-            let html = `<button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>`;
-            const maxVisible = 5;
-            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-            let endPage   = Math.min(totalPages, startPage + maxVisible - 1);
-            if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
-            if (startPage > 1) {
-                html += `<button onclick="changePage(1)">1</button>`;
-                if (startPage > 2) html += `<span class="page-info">...</span>`;
-            }
-            for (let i = startPage; i <= endPage; i++) {
-                html += `<button onclick="changePage(${i})" ${i === currentPage ? 'class="active"' : ''}>${i}</button>`;
-            }
-            if (endPage < totalPages) {
-                if (endPage < totalPages - 1) html += `<span class="page-info">...</span>`;
-                html += `<button onclick="changePage(${totalPages})">${totalPages}</button>`;
-            }
-            html += `<button onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>`;
-            const startIdx = (currentPage - 1) * commentsPerPage + 1;
-            const endIdx   = Math.min(currentPage * commentsPerPage, total);
-            html += `<span class="page-info">Showing ${startIdx}–${endIdx} of ${total.toLocaleString()}</span>`;
-            paginationEl.innerHTML = html;
+        async function restoreComment(id) {
+            try {
+                await AdminAuth.ensureCsrfToken();
+                const r = await fetch(`${API_URL}?action=restore`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ id, csrf_token: AdminAuth.getCsrfToken() }),
+                });
+                if (r.ok) { loadComments(); loadCounts(); }
+                else { alert(`Failed: ${(await r.json()).error || 'Unknown error'}`); }
+            } catch (e) { alert('Network error while restoring comment'); }
         }
 
-        function changePage(page) {
-            const totalPages = Math.ceil(currentTotal / commentsPerPage);
-            if (page < 1 || page > totalPages) return;
-            loadPage(page);
-            document.querySelector('.comments-section')?.scrollIntoView({ behavior: 'smooth' });
+        async function permanentDelete(id) {
+            if (!confirm('Permanently delete this comment? This cannot be undone.')) return;
+            try {
+                await AdminAuth.ensureCsrfToken();
+                const r = await fetch(`${API_URL}?action=permanent_delete&id=${id}`, {
+                    method: 'DELETE', credentials: 'include',
+                });
+                if (r.ok) { loadComments(); loadCounts(); }
+                else { alert(`Failed: ${(await r.json()).error || 'Unknown error'}`); }
+            } catch (e) { alert('Network error while deleting comment'); }
         }
-
-        let replyingToId = null;
-        let replyingToPageUrl = null;
-        let adminProfileCache = null;
 
         async function showReplyForm(commentId, pageUrl) {
             replyingToId = commentId;
             replyingToPageUrl = pageUrl;
-            // Hide any other open reply forms
             document.querySelectorAll('[id^="reply-form-"]').forEach(el => {
                 if (el.id !== `reply-form-${commentId}`) el.style.display = 'none';
             });
@@ -635,31 +561,23 @@ VIEWS['all'] = {
                         const data = await response.json();
                         adminProfileCache = data.settings || {};
                     }
-                } catch (e) {
-                    adminProfileCache = {};
-                }
+                } catch (e) { adminProfileCache = {}; }
             }
-
             if (adminProfileCache) {
-                if (adminProfileCache.admin_name) {
-                    document.getElementById(`reply-name-${commentId}`).value = adminProfileCache.admin_name;
-                }
-                if (adminProfileCache.admin_email) {
-                    document.getElementById(`reply-email-${commentId}`).value = adminProfileCache.admin_email;
-                }
-                if (adminProfileCache.admin_url) {
-                    document.getElementById(`reply-url-${commentId}`).value = adminProfileCache.admin_url;
-                }
+                if (adminProfileCache.admin_name) document.getElementById(`reply-name-${commentId}`).value = adminProfileCache.admin_name;
+                if (adminProfileCache.admin_email) document.getElementById(`reply-email-${commentId}`).value = adminProfileCache.admin_email;
+                if (adminProfileCache.admin_url) document.getElementById(`reply-url-${commentId}`).value = adminProfileCache.admin_url;
             }
         }
 
         function hideReplyForm(commentId) {
             document.getElementById(`reply-form-${commentId}`).style.display = 'none';
-            document.getElementById(`reply-content-${commentId}`).value = '';
-            document.getElementById(`reply-name-${commentId}`).value = '';
-            document.getElementById(`reply-email-${commentId}`).value = '';
-            document.getElementById(`reply-url-${commentId}`).value = '';
-            document.getElementById(`reply-status-${commentId}`).textContent = '';
+            ['content','name','email','url'].forEach(f => {
+                const el = document.getElementById(`reply-${f}-${commentId}`);
+                if (el) el.value = '';
+            });
+            const st = document.getElementById(`reply-status-${commentId}`);
+            if (st) st.textContent = '';
             replyingToId = null;
             replyingToPageUrl = null;
         }
@@ -670,59 +588,31 @@ VIEWS['all'] = {
             const url = document.getElementById(`reply-url-${commentId}`).value.trim();
             const content = document.getElementById(`reply-content-${commentId}`).value.trim();
             const statusEl = document.getElementById(`reply-status-${commentId}`);
-            
-            if (!name) {
-                statusEl.textContent = 'Please enter your name';
-                statusEl.style.color = 'red';
-                return;
-            }
-            if (!email) {
-                statusEl.textContent = 'Please enter your email';
-                statusEl.style.color = 'red';
-                return;
-            }
-            if (!content) {
-                statusEl.textContent = 'Please enter a reply';
-                statusEl.style.color = 'red';
-                return;
-            }
 
-            if (!replyingToPageUrl) {
-                statusEl.textContent = 'Error: missing page URL';
-                statusEl.style.color = 'red';
-                return;
-            }
+            if (!name) { statusEl.textContent = 'Please enter your name'; statusEl.style.color = 'red'; return; }
+            if (!email) { statusEl.textContent = 'Please enter your email'; statusEl.style.color = 'red'; return; }
+            if (!content) { statusEl.textContent = 'Please enter a reply'; statusEl.style.color = 'red'; return; }
+            if (!replyingToPageUrl) { statusEl.textContent = 'Error: missing page URL'; statusEl.style.color = 'red'; return; }
 
             try {
                 await AdminAuth.ensureCsrfToken();
-                statusEl.textContent = 'Submitting...';
+                statusEl.textContent = 'Submitting…';
                 statusEl.style.color = 'var(--body-text,#888)';
-
                 const response = await fetch(`${API_URL}?action=admin_post`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({
-                        page_url: replyingToPageUrl,
-                        parent_id: commentId,
-                        author_name: name,
-                        author_email: email,
-                        author_url: url || null,
-                        content: content,
-                        author_role: 'admin',
-                        csrf_token: AdminAuth.getCsrfToken()
+                        page_url: replyingToPageUrl, parent_id: commentId,
+                        author_name: name, author_email: email, author_url: url || null,
+                        content, author_role: 'admin', csrf_token: AdminAuth.getCsrfToken()
                     })
                 });
-
                 const result = await response.json();
-
                 if (response.ok) {
                     statusEl.textContent = '✓ Reply posted successfully!';
                     statusEl.style.color = 'green';
-                    setTimeout(() => {
-                        hideReplyForm(commentId);
-                        loadPage(currentPage);
-                    }, 1000);
+                    setTimeout(() => { hideReplyForm(commentId); loadComments(); }, 1000);
                 } else {
                     statusEl.textContent = 'Failed: ' + (result.error || 'Unknown error');
                     statusEl.style.color = 'red';
@@ -733,13 +623,17 @@ VIEWS['all'] = {
             }
         }
 
-        hoistToWindow({ applyFilters, applyStatusFilter, clearFilters, moderateComment, deleteComment, changePage, startCommentEdit, showReplyForm, hideReplyForm, submitReply });
-        loadDashboard();
+        hoistToWindow({
+            switchTab, reloadComments, commentsChangePage,
+            moderateComment, deleteComment, restoreComment, permanentDelete,
+            startCommentEdit, showReplyForm, hideReplyForm, submitReply
+        });
+        loadCounts();
+        loadComments();
     },
 };
 
 
-// ─────────────────────────────────────────────────────────────────────────────
 // ANALYTICS
 // ─────────────────────────────────────────────────────────────────────────────
 VIEWS['analytics'] = {

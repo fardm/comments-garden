@@ -188,7 +188,7 @@
     color: white;
 }
 
-.badge-spam {
+.badge-spam, .badge-deleted {
     background-color: #dc3545;
     color: white;
 }

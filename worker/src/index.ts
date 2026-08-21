@@ -220,10 +220,12 @@ const handler = async (c: any) => {
     }
 
     if (method === 'GET' && action === 'all') {
-      const limit = parseInt(c.req.query('limit') || '50')
+      const limit = parseInt(c.req.query('limit') || '20')
       const offset = parseInt(c.req.query('offset') || '0')
       const status = c.req.query('status')
       const search = c.req.query('search')
+      const dateFilter = c.req.query('date')
+      const sortBy = c.req.query('sort') === 'asc' ? 'ASC' : 'DESC'
 
       let query = "SELECT * FROM comments"
       let countQuery = "SELECT COUNT(*) as count FROM comments"
@@ -241,12 +243,27 @@ const handler = async (c: any) => {
         params.push(searchTerm, searchTerm, searchTerm)
       }
 
+      // Date filtering
+      if (dateFilter && dateFilter !== 'all') {
+        const dateMap: Record<string, string> = {
+          'day': '-1 days',
+          'week': '-7 days',
+          'month': '-1 months',
+          'year': '-1 years',
+        }
+        const interval = dateMap[dateFilter]
+        if (interval) {
+          conditions.push("created_at > datetime('now', ?)")
+          params.push(interval)
+        }
+      }
+
       if (conditions.length > 0) {
         query += " WHERE " + conditions.join(" AND ")
         countQuery += " WHERE " + conditions.join(" AND ")
       }
 
-      query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+      query += ` ORDER BY created_at ${sortBy} LIMIT ? OFFSET ?`
 
       const countStmt = db.prepare(countQuery)
       const stmt = db.prepare(query)
@@ -299,12 +316,37 @@ const handler = async (c: any) => {
       const id = parseInt(c.req.query('id') || '0') || body.id
       const result = await comments.editComment(id, body.content)
       return c.json(result)
-    }
-
-    if (method === 'DELETE' && action === 'delete') {
+    }      if (method === 'DELETE' && action === 'delete') {
       const body = await c.req.json().catch(() => ({}))
       const id = parseInt(c.req.query('id') || '0') || body.id
+      // Soft delete: set status to 'deleted'
       const result = await comments.deleteComment(id)
+      return c.json(result)
+    }
+
+    if (method === 'POST' && action === 'restore') {
+      const body = await c.req.json().catch(() => ({}))
+      const id = parseInt(c.req.query('id') || '0') || body.id
+      const result = await comments.restoreComment(id)
+      return c.json(result)
+    }
+
+    if (method === 'DELETE' && action === 'permanent_delete') {
+      const body = await c.req.json().catch(() => ({}))
+      const id = parseInt(c.req.query('id') || '0') || body.id
+      const result = await comments.permanentDeleteComment(id)
+      return c.json(result)
+    }
+
+    if (method === 'GET' && action === 'comment_counts') {
+      const counts = await db.prepare("SELECT status, COUNT(*) as count FROM comments GROUP BY status").all()
+      const result: Record<string, number> = { pending: 0, approved: 0, spam: 0, deleted: 0, all: 0 }
+      for (const row of counts.results) {
+        const s = row.status as string
+        const c2 = row.count as number
+        if (s in result) result[s] = c2
+        result.all += c2
+      }
       return c.json(result)
     }
 
