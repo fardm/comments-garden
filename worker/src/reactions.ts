@@ -15,8 +15,8 @@ export class ReactionService {
       voted = false;
     }
 
-    // Get updated counts for this comment
-    const { results } = await this.db.prepare('SELECT reaction_type, COUNT(*) as count FROM comment_reactions WHERE comment_id = ? GROUP BY reaction_type').bind(commentId).all()
+    // Get updated counts for this comment (user reactions only — admin reactions are rendered separately)
+    const { results } = await this.db.prepare("SELECT reaction_type, COUNT(*) as count FROM comment_reactions WHERE comment_id = ? AND (author_role = 'user' OR author_role IS NULL) GROUP BY reaction_type").bind(commentId).all()
     const counts: Record<string, number> = {}
     for (const r of results) {
       counts[r.reaction_type as string] = r.count as number

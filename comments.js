@@ -342,11 +342,15 @@ class CommentSystem {
         const container = document.getElementById(`comment-reaction-badges-${commentId}`);
         if (!container) return;
 
+        // Preserve existing admin reaction badges (they are not included in user counts)
+        const adminBadges = container.querySelectorAll('.admin-reaction-badge');
+        const adminHtml = Array.from(adminBadges).map(el => el.outerHTML).join('');
+
         const used = this.getReactionDefinitions().filter(r => {
             const count = typeof counts[r.type] === 'object' ? counts[r.type].count : (counts[r.type] || 0);
             return count > 0;
         });
-        if (used.length === 0) {
+        if (used.length === 0 && !adminHtml) {
             container.innerHTML = '';
             const wrap = document.getElementById(`cs-reaction-picker-wrap-${commentId}`);
             if (wrap) wrap.classList.add('no-badges');
@@ -355,7 +359,7 @@ class CommentSystem {
 
         const wrap = document.getElementById(`cs-reaction-picker-wrap-${commentId}`);
         if (wrap) wrap.classList.remove('no-badges');
-        container.innerHTML = used.map(r => {
+        container.innerHTML = adminHtml + used.map(r => {
             const count = typeof counts[r.type] === 'object' ? counts[r.type].count : (counts[r.type] || 0);
             const serverVoted = typeof counts[r.type] === 'object' && counts[r.type].voted;
             const voted = serverVoted || this.hasVoted(commentId, r.type);
