@@ -987,17 +987,13 @@
 }
 
 .acc-admin-reaction-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background-color: var(--gray);
-    border: 1px solid var(--border-color, #ccc);
-    border-radius: 12px;
-    padding: 2px 8px;
-    font-size: 0.85rem;
+    background: var(--on-background);
+    border: 1px solid var(--lightgray);
+    border-radius: 999px;
+    padding: .25rem .6rem;
     cursor: pointer;
 }
 
 .acc-admin-reaction-pill:hover {
-    background-color: var(--hover-color, #e0e0e0);
+    border-color: var(--gray);
 }

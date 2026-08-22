@@ -693,14 +693,14 @@
   color: #e74c3c;
 }
 .admin-reaction-badge {
+    background: var(--on-background);
+    border: 1px solid var(--lightgray);
+    color: var(--gray);
+    padding: 0.3rem 0.4rem;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    background-color: var(--gray, #f0f0f0);
-    border: 1px solid var(--lightgray, #ddd);
-    border-radius: 12px;
-    padding: 2px 8px;
-    font-size: 0.85rem;
+    gap: 0.25rem;
+    border-radius: 4px;
     margin-right: 4px;
     cursor: default;
 }
