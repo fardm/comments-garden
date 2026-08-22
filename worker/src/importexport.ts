@@ -1,3 +1,5 @@
+import { getGravatarHash } from './comments'
+
 export interface ExportPayload {
   version: 1
   exported_at: string
@@ -166,10 +168,11 @@ export class ImportExportService {
       const createdAt = c.created_at || new Date().toISOString()
       const updatedAt = c.updated_at || createdAt
 
+      const authorHash = c.author_email ? await getGravatarHash(c.author_email) : null
       commentStmts.push(
         this.db.prepare(`
-          INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, author_role)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, author_role, author_hash)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
           c.page_url,
           null, // defer parent linking
@@ -182,6 +185,7 @@ export class ImportExportService {
           c.status || 'approved',
           c.ip_address || null,
           c.author_role || 'user',
+          authorHash,
         )
       )
       commentMeta.push(c)
@@ -338,9 +342,10 @@ export class ImportExportService {
           continue
         }
 
+        const authorHash = comment.author_email ? await getGravatarHash(comment.author_email) : null
         await this.db.prepare(`
-          INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, author_role)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, author_role, author_hash)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
           comment.page_url,
           parentId,
@@ -353,6 +358,7 @@ export class ImportExportService {
           status,
           ip,
           comment.author_role || 'user',
+          authorHash,
         ).run()
 
         imported++

@@ -9,9 +9,13 @@ export async function getGravatarHash(email: string): Promise<string> {
     .join('')
 }
 
+function gravatarUrlFromHash(hashHex: string, size = 80): string {
+  return `https://www.gravatar.com/avatar/${hashHex}?s=${size}&d=mp`
+}
+
 export async function getGravatarUrl(email: string, size = 80): Promise<string> {
   const hashHex = await getGravatarHash(email)
-  return `https://www.gravatar.com/avatar/${hashHex}?s=${size}&d=mp`
+  return gravatarUrlFromHash(hashHex, size)
 }
 
 async function enrichCommentsWithAvatars(comments: any[]): Promise<void> {
@@ -27,16 +31,24 @@ async function enrichCommentsWithAvatars(comments: any[]): Promise<void> {
   }
   collect(comments)
 
-  // Generate all Gravatar URLs in parallel
-  await Promise.all(
-    allComments.map(async (comment) => {
-      if (comment.author_email) {
-        comment.author_avatar = await getGravatarUrl(comment.author_email as string)
-      }
-      // Don't expose email to public consumers
-      delete comment.author_email
-    })
-  )
+  // Batch-compute hashes for any legacy comments missing author_hash
+  const missingHashComments = allComments.filter(c => !c.author_hash && c.author_email)
+  if (missingHashComments.length > 0) {
+    await Promise.all(
+      missingHashComments.map(async (comment) => {
+        comment.author_hash = await getGravatarHash(comment.author_email as string)
+      })
+    )
+  }
+
+  // Generate all Gravatar URLs from stored hashes (no per-request crypto)
+  for (const comment of allComments) {
+    if (comment.author_hash) {
+      comment.author_avatar = gravatarUrlFromHash(comment.author_hash as string)
+    }
+    // Don't expose email to public consumers
+    delete comment.author_email
+  }
 }
 
 export class CommentService {
@@ -49,12 +61,7 @@ export class CommentService {
   }
 
   async getComments(url: string, limit: number, offset: number, ip: string) {
-    const { results: comments } = await this.db.prepare(`
-      SELECT * FROM comments
-      WHERE page_url = ? AND status = 'approved'
-      ORDER BY created_at ASC
-      LIMIT ? OFFSET ?
-    `).bind(url, limit, offset).all()
+    const { results: comments } = await this.db.prepare(`\r\n      SELECT * FROM comments\r\n      WHERE page_url = ? AND status = 'approved'\r\n      ORDER BY created_at ASC\r\n      LIMIT ? OFFSET ?\r\n    `).bind(url, limit, offset).all()
 
     // Group into threads
     const topLevel: any[] = []
@@ -107,7 +114,7 @@ export class CommentService {
 
     const { count } = await this.db.prepare(`SELECT COUNT(*) as count FROM comments WHERE page_url = ? AND status = 'approved'`).bind(url).first<{count: number}>() || { count: 0 }
 
-    // Generate Gravatar URLs from email and strip email from public response
+    // Generate Gravatar URLs from stored hashes and strip email from public response
     await enrichCommentsWithAvatars(topLevel)
 
     return { comments: topLevel, total: count }
@@ -123,11 +130,9 @@ export class CommentService {
     const status = isSpam ? 'spam' : 'pending' // Should read from settings 'require_moderation'
     // Public comments always get 'user' role — admin role is only set via createAdminComment
     const authorRole = 'user'
+    const authorHash = await getGravatarHash(data.author_email)
 
-    const result = await this.db.prepare(`
-      INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, ip_address, status, author_role)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
+    const result = await this.db.prepare(`\r\n      INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, ip_address, status, author_role, author_hash)\r\n      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\r\n    `).bind(
       data.page_url,
       data.parent_id || null,
       data.author_name,
@@ -136,7 +141,8 @@ export class CommentService {
       data.content,
       ip,
       status,
-      authorRole
+      authorRole,
+      authorHash
     ).run()
 
     if (result.success) {
@@ -150,10 +156,9 @@ export class CommentService {
   }
 
   async createAdminComment(data: any, ip: string) {
-    const result = await this.db.prepare(`
-      INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, ip_address, status, author_role)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
+    const authorHash = await getGravatarHash(data.author_email)
+
+    const result = await this.db.prepare(`\r\n      INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, ip_address, status, author_role, author_hash)\r\n      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\r\n    `).bind(
       data.page_url,
       data.parent_id || null,
       data.author_name,
@@ -162,7 +167,8 @@ export class CommentService {
       data.content,
       ip,
       'approved',
-      'admin'
+      'admin',
+      authorHash
     ).run()
 
     if (result.success) {
@@ -204,18 +210,13 @@ export class CommentService {
   }
 
   async getRecentComments(limit: number) {
-    const { results } = await this.db.prepare(`
-      SELECT * FROM comments
-      WHERE status = 'approved'
-      ORDER BY created_at DESC
-      LIMIT ?
-    `).bind(limit).all()
+    const { results } = await this.db.prepare(`\r\n      SELECT * FROM comments\r\n      WHERE status = 'approved'\r\n      ORDER BY created_at DESC\r\n      LIMIT ?\r\n    `).bind(limit).all()
 
     for (const row of results) {
       const content = row.content as string;
       row.excerpt = content.length > 150 ? content.substring(0, 150) + '...' : content;
     }
-    // Generate Gravatar URLs from email and strip email from public response
+    // Generate Gravatar URLs from stored hashes and strip email from public response
     await enrichCommentsWithAvatars(results as any[])
     return { comments: results }
   }
