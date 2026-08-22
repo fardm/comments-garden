@@ -873,7 +873,8 @@ VIEWS['comments'] = {
             switchTab, reloadComments, commentsChangePage,
             moderateComment, deleteComment, restoreComment, permanentDelete,
             startCommentEdit, showReplyForm, hideReplyForm, submitReply,
-            toggleCommentMenu, switchView
+            toggleCommentMenu, switchView,
+            toggleAdminReactionPicker, adminToggleVote
         });
 
         // Close dropdown menus on outside click
