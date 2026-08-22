@@ -7,7 +7,6 @@ const crypto = require('crypto');
 const WORKER_DIR = path.join(__dirname, '../worker');
 const WRANGLER_TOML = path.join(WORKER_DIR, 'wrangler.toml');
 const SCHEMA_PATH = path.join(WORKER_DIR, 'schema.sql');
-const MIGRATIONS_DIR = path.join(WORKER_DIR, 'migrations');
 
 // ── Readline ──────────────────────────────────────────────────────────────────
 
@@ -172,66 +171,6 @@ function initSchema(dbName) {
   }
 
   console.log('✅ Schema initialized\n');
-}
-
-function applyMigrations(dbName) {
-  console.log('📦 Applying database migrations...\n');
-
-  if (!fs.existsSync(MIGRATIONS_DIR)) {
-    console.log('   No migrations directory found.\n');
-    return;
-  }
-
-  const files = fs.readdirSync(MIGRATIONS_DIR)
-    .filter(f => f.endsWith('.sql'))
-    .sort();
-
-  if (files.length === 0) {
-    console.log('   No migration files found.\n');
-    return;
-  }
-
-  console.log(`   ${files.length} migration file(s) found...\n`);
-  for (const file of files) {
-    const filePath = path.join(MIGRATIONS_DIR, file);
-    const sql = fs.readFileSync(filePath, 'utf-8');
-
-    // Extract comment lines for display
-    const firstComment = sql.split('\n').find(l => l.startsWith('--'));
-    const label = firstComment ? firstComment.replace(/^--\s*/, '').trim() : file;
-    console.log(`   📄 ${label}`);
-
-    // Try to run each statement from the migration file individually
-    // to gracefully handle "duplicate column" and similar idempotency errors
-    const statements = sql
-      .split(';')
-      .map(s => s.trim())
-      .filter(s => s.length > 0 && !s.startsWith('--'));
-
-    for (const stmt of statements) {
-      for (const target of ['--local', '--remote']) {
-        try {
-          execSync(`npx wrangler d1 execute "${dbName}" ${target} --command="${stmt.replace(/"/g, '\\"')}"`, {
-            encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], cwd: WORKER_DIR,
-          });
-          console.log(`      -> ${target.replace('--', '')}: applied`);
-        } catch (e) {
-          const msg = (e.stderr || e.stdout || '').toLowerCase();
-          if (msg.includes('duplicate column') || msg.includes('duplicate table') || msg.includes('already exists')) {
-            console.log(`      -> ${target.replace('--', '')}: already up to date`);
-          } else {
-            const details = (e.stderr || e.stdout || e.message || '').trim();
-            console.error(`\n❌ Migration failed in ${file} (${target.replace('--', '')}):`);
-            console.error(details.substring(0, 200));
-            console.error('\nStopping. Remaining migrations were NOT applied.\n');
-            process.exit(1);
-          }
-        }
-      }
-    }
-  }
-
-  console.log('\n✅ All migrations applied\n');
 }
 
 // ── Options ───────────────────────────────────────────────────────────────────
@@ -457,17 +396,6 @@ async function optionReinitializeDatabase() {
   console.log('   You will need to set a new admin password with option 2.\n');
 }
 
-async function optionApplyMigrations() {
-  console.log('═══════════════════════════════════════════════════');
-  console.log('  📦 Apply Database Migrations');
-  console.log('═══════════════════════════════════════════════════\n');
-
-  const dbName = getDbName();
-  console.log(`Target database: "${dbName}"\n`);
-
-  applyMigrations(dbName);
-}
-
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 function printMenu() {
@@ -478,8 +406,7 @@ function printMenu() {
   console.log('  2. Change admin password');
   console.log('  3. Configure database');
   console.log('  4. Reinitialize database');
-  console.log('  5. Apply database migrations');
-  console.log('  6. Exit\n');
+  console.log('  5. Exit\n');
 }
 
 async function main() {
@@ -488,23 +415,21 @@ async function main() {
   // Allow direct invocation via flags
   if (args.includes('--setup')) { await optionInitialSetup(); process.exit(0); }
   if (args.includes('--password')) { await optionChangePassword(); process.exit(0); }
-  if (args.includes('--migrate')) { await optionApplyMigrations(); process.exit(0); }
   if (args.includes('--reinit')) { await optionReinitializeDatabase(); process.exit(0); }
 
   // Interactive menu
   printMenu();
 
-  const choice = await prompt('Enter option (1-6): ');
+  const choice = await prompt('Enter option (1-5): ');
 
   const actions = {
     '1': optionInitialSetup,
     '2': optionChangePassword,
     '3': optionConfigureDatabase,
     '4': optionReinitializeDatabase,
-    '5': optionApplyMigrations,
   };
 
-  if (choice === '6' || choice === '') {
+  if (choice === '5' || choice === '') {
     console.log('\n👋 Goodbye.\n');
     process.exit(0);
   }

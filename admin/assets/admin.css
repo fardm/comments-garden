@@ -969,9 +969,9 @@
 
 .acc-reaction-picker-wrap .btn-reaction-add {
     background: transparent;
-    border: 1px solid var(--gray);
+    border: 1px solid var(--lightgray);
     border-radius: 4px;
-    padding: 0.25rem 0.5rem;
+    padding: 0.5rem;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -979,11 +979,11 @@
 }
 
 .acc-reaction-picker-wrap .btn-reaction-add:hover {
-    background: var(--gray);
+    background: var(--lightgray);
 }
 
 .acc-reaction-picker-wrap .reaction-picker-emoji:hover {
-    background: var(--gray) !important;
+    filter: brightness(120%);
 }
 
 .acc-admin-reaction-pill {

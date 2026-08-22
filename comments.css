@@ -699,15 +699,16 @@
     padding: 0.3rem 0.4rem;
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.2rem;
     border-radius: 4px;
     margin-right: 4px;
     cursor: default;
+    font-size: 1rem;
 }
 
 .admin-reaction-avatar {
     border-radius: 50%;
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
     object-fit: cover;
 }
