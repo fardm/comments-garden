@@ -983,7 +983,7 @@
 }
 
 .acc-reaction-picker-wrap .reaction-picker-emoji:hover {
-    filter: brightness(120%);
+    background: var(--lightgray);
 }
 
 .acc-admin-reaction-pill {
