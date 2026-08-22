@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { AuthService } from './auth'
-import { CommentService, getGravatarUrl } from './comments'
+import { CommentService, getGravatarHash } from './comments'
 import { ReactionService } from './reactions'
 import { AdminService } from './admin'
 import { RateLimitService } from "./ratelimit"
@@ -60,7 +60,9 @@ const handler = async (c: any) => {
         // Fallback data URI for "A"
         return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'><rect width='80' height='80' fill='%236c757d'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='40' font-family='sans-serif'>A</text></svg>";
       }
-      return await getGravatarUrl(adminEmail, 32);
+      // Use the same-origin proxy so the admin CSP (img-src 'self') allows it
+      const hashHex = await getGravatarHash(adminEmail);
+      return `/api/gravatar/${hashHex}?s=32`;
     }
 
     // Helper: parse enabled reactions from settings (all enabled if unset)

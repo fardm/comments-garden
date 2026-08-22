@@ -2061,7 +2061,7 @@ VIEWS['settings-import-export'] = {
                         <div class="drop-label">Drop JSON backup file here or click to browse</div>
                         <div class="file-selected" id="file-selected-label" style="display:none;"></div>
                     </div>
-                    <div id="import-preview" style="display:none;"></div>
+                    <div id="import-preview" style="display:none; color: var(--body-text);"></div>
                     <div id="import-message"></div>
                     <div class="import-actions">
                         <button class="btn btn-secondary btn-sm" id="btn-preview" onclick="previewImport()" disabled>Preview</button>

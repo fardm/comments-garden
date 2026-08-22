@@ -1,12 +1,16 @@
 import { SpamService } from './spam'
 
-export async function getGravatarUrl(email: string, size = 80): Promise<string> {
+export async function getGravatarHash(email: string): Promise<string> {
   const normalized = email.trim().toLowerCase()
   const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(normalized))
   const hashArray = new Uint8Array(hashBuffer)
-  const hashHex = Array.from(hashArray)
+  return Array.from(hashArray)
     .map(b => b.toString(16).padStart(2, '0'))
     .join('')
+}
+
+export async function getGravatarUrl(email: string, size = 80): Promise<string> {
+  const hashHex = await getGravatarHash(email)
   return `https://www.gravatar.com/avatar/${hashHex}?s=${size}&d=mp`
 }
 
