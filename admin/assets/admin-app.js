@@ -559,9 +559,11 @@ VIEWS['comments'] = {
                     .join('');
 
                 const reactionPills = userReactionPills + adminReactionPills;
+                const isPendingTab = activeTab === 'pending';
 
-                // Build dropdown menu items
+                // Build dropdown menu items (non-pending tabs only)
                 const menuItems = [];
+                if (!isPendingTab) {
                 menuItems.push(`<button class="acc-dropdown-item" onclick="startCommentEdit(${comment.id})"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>`);
                 if (!isDeleted && !isApproved) {
                     menuItems.push(`<button class="acc-dropdown-item" onclick="moderateComment(${comment.id}, 'approved')"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Approve</button>`);
@@ -578,6 +580,7 @@ VIEWS['comments'] = {
                     menuItems.push(`<div class="acc-dropdown-sep"></div>`);
                     menuItems.push(`<button class="acc-dropdown-item danger" onclick="deleteComment(${comment.id})"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</button>`);
                 }
+                } // end if (!isPendingTab)
 
                 const isAdminComment = comment.author_role === 'admin';
 
@@ -595,12 +598,12 @@ VIEWS['comments'] = {
                         </div>
                         <div class="acc-header-right">
                             <span class="acc-status-badge badge-${comment.status}">${comment.status}</span>
-                            <div class="acc-menu-wrap" id="acc-menu-${comment.id}">
+                            ${!isPendingTab ? `<div class="acc-menu-wrap" id="acc-menu-${comment.id}">
                                 <button class="acc-menu-btn" onclick="toggleCommentMenu(${comment.id})" aria-label="Actions">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                                 </button>
                                 <div class="acc-dropdown">${menuItems.join('')}</div>
-                            </div>
+                            </div>` : ''}
                         </div>
                     </div>
                     <div class="acc-meta-row">
@@ -621,7 +624,7 @@ VIEWS['comments'] = {
                     <div class="acc-content" dir="auto" id="comment-content-${comment.id}">${escapeHtml(comment.content)}</div>
                     ${reactionPills ? `<div class="acc-reactions">${reactionPills}</div>` : ''}
                     <div class="acc-actions-row" style="display: flex; gap: 0.5rem; align-items: center;">
-                        <div class="acc-reaction-picker-wrap" id="acc-reaction-picker-wrap-${comment.id}" style="position: relative;">
+                        ${isPendingTab ? `<button class="acc-dropdown-item" onclick="startCommentEdit(${comment.id})" style="display:inline-flex;align-items:center;gap:.6rem;padding:.5rem .85rem;border:none;background:transparent;color:var(--body-text);font-size:.88rem;cursor:pointer;border-radius:6px;font-family:inherit;"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button><button class="acc-dropdown-item" onclick="moderateComment(${comment.id}, 'approved')" style="display:inline-flex;align-items:center;gap:.6rem;padding:.5rem .85rem;border:none;background:transparent;color:var(--body-text);font-size:.88rem;cursor:pointer;border-radius:6px;font-family:inherit;"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Approve</button><button class="acc-dropdown-item" onclick="moderateComment(${comment.id}, 'spam')" style="display:inline-flex;align-items:center;gap:.6rem;padding:.5rem .85rem;border:none;background:transparent;color:var(--body-text);font-size:.88rem;cursor:pointer;border-radius:6px;font-family:inherit;"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Spam</button><button class="acc-dropdown-item danger" onclick="deleteComment(${comment.id})" style="display:inline-flex;align-items:center;gap:.6rem;padding:.5rem .85rem;border:none;background:transparent;color:var(--red);font-size:.88rem;cursor:pointer;border-radius:6px;font-family:inherit;"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</button>` : `<div class="acc-reaction-picker-wrap" id="acc-reaction-picker-wrap-${comment.id}" style="position: relative;">
                             <button type="button" class="btn-reaction-add" onclick="toggleAdminReactionPicker(${comment.id})" title="Add Reaction">
                                 <svg xmlns="http://www.w3.org/2000/svg" height="14" viewBox="0 0 16 16" width="14" class="octicon octicon-smiley social-button-emoji"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm3.82 1.636a.75.75 0 0 1 1.038.175l.007.009c.103.118.22.222.35.31.264.178.683.37 1.285.37.602 0 1.02-.192 1.285-.371.13-.088.247-.192.35-.31l.007-.008a.75.75 0 0 1 1.222.87l-.022-.015c.02.013.021.015.021.015v.001l-.001.002-.002.003-.005.007-.014.019a2.066 2.066 0 0 1-.184.213c-.16.166-.338.316-.53.445-.63.418-1.37.638-2.127.629-.946 0-1.652-.308-2.126-.63a3.331 3.331 0 0 1-.715-.657l-.014-.02-.005-.006-.002-.003v-.002h-.001l.613-.432-.614.43a.75.75 0 0 1 .183-1.044ZM12 7a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM5 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm5.25 2.25.592.416a97.71 97.71 0 0 0-.592-.416Z" fill="#9198A1"></path></svg>
                             </button>
@@ -632,9 +635,9 @@ VIEWS['comments'] = {
                         <button class="acc-reply-btn" onclick="showReplyForm(${comment.id}, '${escapedPageUrl}')">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
                             Reply
-                        </button>
+                        </button>`}
                     </div>
-                    <div id="reply-form-${comment.id}" style="display:none;margin-top:1rem;padding:1rem;background:var(--on-background);border:1px solid var(--gray);border-radius:4px;">
+                    ${!isPendingTab ? `<div id="reply-form-${comment.id}" style="display:none;margin-top:1rem;padding:1rem;background:var(--on-background);border:1px solid var(--gray);border-radius:4px;">
                         <div style="margin-bottom:.5rem;color:var(--body-text);"><strong>Reply to comment #${comment.id}</strong></div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">
                             <div>
@@ -656,7 +659,7 @@ VIEWS['comments'] = {
                             <button class="btn btn-secondary btn-sm" onclick="hideReplyForm(${comment.id})">Cancel</button>
                             <span id="reply-status-${comment.id}" style="font-size:.85rem;color:var(--body-text,#888);opacity:.8;"></span>
                         </div>
-                    </div>
+                    </div>` : ''}
                 </div>`;
             }).join('');
 
