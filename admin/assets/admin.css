@@ -997,3 +997,38 @@
 .acc-admin-reaction-pill:hover {
     border-color: var(--gray);
 }
+
+/* Pending-tab action buttons */
+.admin-comment-card .acc-actions-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.admin-comment-card .acc-actions-row .acc-pending-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--lightgray);
+    background: var(--on-background);
+    color: var(--body-text);
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: 6px;
+    font-family: inherit;
+    white-space: nowrap;
+}
+
+.admin-comment-card .acc-actions-row .acc-pending-btn:hover {
+    filter: brightness(1.12);
+}
+
+.admin-comment-card .acc-actions-row .acc-pending-btn--approve {
+    color: #16a34a;
+}
+
+.admin-comment-card .acc-actions-row .acc-pending-btn--danger {
+    color: var(--red);
+}
