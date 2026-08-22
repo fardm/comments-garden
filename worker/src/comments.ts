@@ -113,20 +113,20 @@ export class CommentService {
     return { comments: topLevel, total: count }
   }
 
-  async createComment(data: any, ip: string, userAgent: string) {
+  async createComment(data: any, ip: string) {
     // Honeypot check
     if (data.website) {
       return { error: 'spam_detected' }
     }
 
-    const isSpam = await this.spamService.checkSpam(data.content, data.author_name, data.author_email, data.author_url || '', ip, userAgent)
+    const isSpam = await this.spamService.checkSpam(data.content, data.author_name, data.author_email, data.author_url || '', ip)
     const status = isSpam ? 'spam' : 'pending' // Should read from settings 'require_moderation'
     // Public comments always get 'user' role — admin role is only set via createAdminComment
     const authorRole = 'user'
 
     const result = await this.db.prepare(`
-      INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, ip_address, user_agent, status, author_role)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, ip_address, status, author_role)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       data.page_url,
       data.parent_id || null,
@@ -135,7 +135,6 @@ export class CommentService {
       data.author_url || null,
       data.content,
       ip,
-      userAgent,
       status,
       authorRole
     ).run()
@@ -150,10 +149,10 @@ export class CommentService {
     return { error: 'Database error' }
   }
 
-  async createAdminComment(data: any, ip: string, userAgent: string) {
+  async createAdminComment(data: any, ip: string) {
     const result = await this.db.prepare(`
-      INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, ip_address, user_agent, status, author_role)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, ip_address, status, author_role)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       data.page_url,
       data.parent_id || null,
@@ -162,7 +161,6 @@ export class CommentService {
       data.author_url || null,
       data.content,
       ip,
-      userAgent,
       'approved',
       'admin'
     ).run()

@@ -114,7 +114,7 @@ const handler = async (c: any) => {
     if (method === 'POST' && action === 'post') {
       const body = await c.req.json()
       if (await ratelimit.isCommentRateLimited(ip)) return c.json({ error: "Too many comments. Please try again later." }, 429)
-      const result = await comments.createComment(body, ip, userAgent)
+      const result = await comments.createComment(body, ip)
 
       // Fire-and-forget Telegram notification via waitUntil
       if (result.success) {
@@ -253,7 +253,7 @@ const handler = async (c: any) => {
 
     if (method === 'POST' && action === 'admin_post') {
       const body = await c.req.json()
-      const result = await comments.createAdminComment(body, ip, userAgent)
+      const result = await comments.createAdminComment(body, ip)
       // No Telegram notification for admin comments
       return c.json(result)
     }

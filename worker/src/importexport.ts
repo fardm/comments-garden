@@ -168,8 +168,8 @@ export class ImportExportService {
 
       commentStmts.push(
         this.db.prepare(`
-          INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, user_agent, author_role)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, author_role)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
           c.page_url,
           null, // defer parent linking
@@ -181,7 +181,6 @@ export class ImportExportService {
           updatedAt,
           c.status || 'approved',
           c.ip_address || null,
-          c.user_agent || null,
           c.author_role || 'user',
         )
       )
@@ -331,7 +330,6 @@ export class ImportExportService {
         const authorUrl = comment.author_url || null
         const status = comment.status || 'approved'
         const ip = comment.ip_address || null
-        const userAgent = comment.user_agent || null
         const createdAt = comment.created_at || new Date().toISOString()
         const updatedAt = comment.updated_at || createdAt
 
@@ -341,8 +339,8 @@ export class ImportExportService {
         }
 
         await this.db.prepare(`
-          INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, user_agent, author_role)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, author_role)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
           comment.page_url,
           parentId,
@@ -354,7 +352,6 @@ export class ImportExportService {
           updatedAt,
           status,
           ip,
-          userAgent,
           comment.author_role || 'user',
         ).run()
 

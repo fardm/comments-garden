@@ -13,7 +13,6 @@ CREATE TABLE IF NOT EXISTS comments (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'spam', 'deleted')),
     ip_address TEXT,
-    user_agent TEXT,
     author_role TEXT NOT NULL DEFAULT 'user',
     FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
 );

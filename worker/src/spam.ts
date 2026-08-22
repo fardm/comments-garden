@@ -5,7 +5,7 @@ export class SpamService {
     this.db = db
   }
 
-  async checkSpam(content: string, authorName: string, authorEmail: string, authorUrl: string, ip: string, userAgent: string): Promise<boolean> {
+  async checkSpam(content: string, authorName: string, authorEmail: string, authorUrl: string, ip: string): Promise<boolean> {
     // 1. Basic honey pot check
     // If the frontend sent something hidden, it should be blocked, but here we just check DB rules
 
