@@ -220,7 +220,11 @@ function applyMigrations(dbName) {
           if (msg.includes('duplicate column') || msg.includes('duplicate table') || msg.includes('already exists')) {
             console.log(`      -> ${target.replace('--', '')}: already up to date`);
           } else {
-            console.log(`      -> ${target.replace('--', '')}: skipped (${(e.message || 'error').substring(0, 80)})`);
+            const details = (e.stderr || e.stdout || e.message || '').trim();
+            console.error(`\n❌ Migration failed in ${file} (${target.replace('--', '')}):`);
+            console.error(details.substring(0, 200));
+            console.error('\nStopping. Remaining migrations were NOT applied.\n');
+            process.exit(1);
           }
         }
       }
@@ -262,10 +266,7 @@ async function optionInitialSetup() {
   // 4. Initialize schema (applies schema.sql; exits on failure)
   initSchema(dbName);
 
-  // 5. Apply migrations (only migration files, not schema.sql)
-  applyMigrations(dbName);
-
-  // 6. Admin password (only reached if schema + migrations succeeded)
+  // 5. Admin password (only reached if schema succeeded)
   console.log('🔐 Admin Account Setup');
   let password = await prompt('Enter a new admin password: ');
   while (!password || password.trim().length < 4) {
@@ -402,7 +403,6 @@ async function optionConfigureDatabase() {
     }
     console.log(`✅ Created "${newName}" with ID: ${dbId}`);
     initSchema(newName);
-    applyMigrations(newName);
   }
 
   console.log(`\nUpdating wrangler.toml to point to "${newName}"...`);
@@ -452,7 +452,6 @@ async function optionReinitializeDatabase() {
   console.log('✅ All tables dropped\n');
 
   initSchema(dbName);
-  applyMigrations(dbName);
 
   console.log('✅ Database reinitialized successfully.');
   console.log('   You will need to set a new admin password with option 2.\n');
