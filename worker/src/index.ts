@@ -295,11 +295,12 @@ const requireAdmin = async (c: any, next: any) => {
   return next()
 }
 
+// Apply auth middleware to ALL admin routes at once
+app.use('/api/admin/*', requireAdmin)
+
 // ── Admin Comments ───────────────────────────────────────────────────────────
 
 const adminComments = new Hono<{ Bindings: Bindings }>()
-
-adminComments.use('*', requireAdmin)
 
 adminComments.get('/', async (c) => {
   const db = c.env.DB
@@ -506,8 +507,6 @@ app.route('/api/admin/comments', adminComments)
 
 const adminReactions = new Hono<{ Bindings: Bindings }>()
 
-adminReactions.use('*', requireAdmin)
-
 adminReactions.post('/vote', async (c) => {
   const db = c.env.DB
   const ip = c.req.header('CF-Connecting-IP') || '127.0.0.1'
@@ -561,8 +560,6 @@ app.route('/api/admin/reactions', adminReactions)
 
 const adminAuth = new Hono<{ Bindings: Bindings }>()
 
-adminAuth.use('*', requireAdmin)
-
 adminAuth.put('/password', async (c) => {
   const auth = new AuthService(c.env.DB)
   const body = await c.req.json()
@@ -578,8 +575,6 @@ app.route('/api/admin/auth', adminAuth)
 // ── Admin Settings ───────────────────────────────────────────────────────────
 
 const adminSettings = new Hono<{ Bindings: Bindings }>()
-
-adminSettings.use('*', requireAdmin)
 
 adminSettings.get('/', async (c) => {
   const settings = new SettingsService(c.env.DB)
@@ -599,8 +594,6 @@ app.route('/api/admin/settings', adminSettings)
 // ── Admin Config ─────────────────────────────────────────────────────────────
 
 const adminConfig = new Hono<{ Bindings: Bindings }>()
-
-adminConfig.use('*', requireAdmin)
 
 adminConfig.get('/', async (c) => {
   const settings = new SettingsService(c.env.DB)
@@ -625,8 +618,6 @@ app.route('/api/admin/config', adminConfig)
 
 const adminAnalytics = new Hono<{ Bindings: Bindings }>()
 
-adminAnalytics.use('*', requireAdmin)
-
 adminAnalytics.get('/', async (c) => {
   const admin = new AdminService(c.env.DB)
   const result = await admin.getAnalytics()
@@ -638,8 +629,6 @@ app.route('/api/admin/analytics', adminAnalytics)
 // ── Admin Database ───────────────────────────────────────────────────────────
 
 const adminDb = new Hono<{ Bindings: Bindings }>()
-
-adminDb.use('*', requireAdmin)
 
 adminDb.get('/stats', async (c) => {
   const admin = new AdminService(c.env.DB)
@@ -687,8 +676,6 @@ app.route('/api/admin/db', adminDb)
 
 const adminTelegram = new Hono<{ Bindings: Bindings }>()
 
-adminTelegram.use('*', requireAdmin)
-
 adminTelegram.get('/status', async (c) => {
   const telegram = new TelegramService(c.env.DB)
   const tgSettings = await telegram.getSettings()
@@ -712,8 +699,6 @@ app.route('/api/admin/telegram', adminTelegram)
 // ── Admin Import/Export ──────────────────────────────────────────────────────
 
 const adminImportExport = new Hono<{ Bindings: Bindings }>()
-
-adminImportExport.use('*', requireAdmin)
 
 adminImportExport.post('/import', async (c) => {
   const importExport = new ImportExportService(c.env.DB)
