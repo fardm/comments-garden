@@ -8,6 +8,7 @@ import { RateLimitService } from './ratelimit'
 import { ImportExportService } from './importexport'
 import { SettingsService } from './settings'
 import { TelegramService } from './telegram'
+import { getCachedResponse, cacheResponse, invalidatePageCache, invalidateRecentCache } from './cache'
 
 type Bindings = {
   DB: D1Database
@@ -16,6 +17,20 @@ type Bindings = {
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
+
+// ── Helper: look up a comment's page_url for cache invalidation ──────────
+
+async function getCommentPageUrl(db: D1Database, commentId: number): Promise<string | undefined> {
+  const row = await db.prepare('SELECT page_url FROM comments WHERE id = ?').bind(commentId).first()
+  return row?.page_url as string | undefined
+}
+
+// ── Helper: invalidate caches for a comment page ─────────────────────────
+
+function invalidateCommentCaches(c: any, db: D1Database, pageUrl?: string): void {
+  invalidateRecentCache(c)
+  if (pageUrl) invalidatePageCache(c, pageUrl)
+}
 
 // ── CORS Middleware ───────────────────────────────────────────────────────────
 
@@ -84,6 +99,10 @@ app.get('/api/config', async (c) => {
 // ── Comments ─────────────────────────────────────────────────────────────────
 
 app.get('/api/comments', async (c) => {
+  // Check cache first
+  const cached = await getCachedResponse(c, c.req.raw)
+  if (cached) return cached
+
   const db = c.env.DB
   const ip = c.req.header('CF-Connecting-IP') || '127.0.0.1'
   const comments = new CommentService(db)
@@ -98,14 +117,26 @@ app.get('/api/comments', async (c) => {
 
   const postReactionsSummary = await reactions.getPostReactionsSummary(url, ip)
   const admin_avatar_url = await getAdminAvatar(settings)
-  return c.json({ ...result, post_reactions: postReactionsSummary, admin_avatar_url })
+  const response = c.json({ ...result, post_reactions: postReactionsSummary, admin_avatar_url })
+
+  // Cache the successful response
+  cacheResponse(c, c.req.raw, response)
+  return response
 })
 
 app.get('/api/comments/recent', async (c) => {
+  // Check cache first
+  const cached = await getCachedResponse(c, c.req.raw)
+  if (cached) return cached
+
   const comments = new CommentService(c.env.DB)
   const limit = parseInt(c.req.query('limit') || '8')
   const result = await comments.getRecentComments(limit)
-  return c.json(result)
+  const response = c.json(result)
+
+  // Cache the successful response
+  cacheResponse(c, c.req.raw, response)
+  return response
 })
 
 app.post('/api/comments', async (c) => {
@@ -149,6 +180,12 @@ app.post('/api/comments', async (c) => {
     }
   }
 
+  // Invalidate cache for this page and recent comments
+  if (result.success) {
+    const pageUrl = body.page_url || body.url
+    invalidateCommentCaches(c, db, pageUrl)
+  }
+
   return c.json(result)
 })
 
@@ -170,7 +207,9 @@ app.post('/api/reactions/post', async (c) => {
     return c.json({ error: 'Reaction type is not enabled' }, 400)
   }
 
-  const result = await reactions.togglePostReaction(body.page_url || body.url, ip, body.reaction_type)
+  const pageUrl = body.page_url || body.url
+  const result = await reactions.togglePostReaction(pageUrl, ip, body.reaction_type)
+  invalidateCommentCaches(c, db, pageUrl)
   return c.json(result)
 })
 
@@ -191,6 +230,9 @@ app.post('/api/reactions/vote', async (c) => {
   }
 
   const result = await reactions.toggleVote(body.comment_id, ip, body.reaction_type)
+  // Invalidate cache — look up the comment's page_url
+  const pageUrl = await getCommentPageUrl(db, body.comment_id)
+  invalidateCommentCaches(c, db, pageUrl)
   return c.json(result)
 })
 
@@ -395,39 +437,54 @@ adminComments.get('/counts', async (c) => {
 })
 
 adminComments.put('/:id/moderate', async (c) => {
-  const comments = new CommentService(c.env.DB)
+  const db = c.env.DB
+  const comments = new CommentService(db)
   const id = parseInt(c.req.param('id'))
   const body = await c.req.json().catch(() => ({}))
+  const pageUrl = await getCommentPageUrl(db, id)
   const result = await comments.moderateComment(id, body.status)
+  invalidateCommentCaches(c, db, pageUrl)
   return c.json(result)
 })
 
 adminComments.put('/:id', async (c) => {
-  const comments = new CommentService(c.env.DB)
+  const db = c.env.DB
+  const comments = new CommentService(db)
   const id = parseInt(c.req.param('id'))
   const body = await c.req.json().catch(() => ({}))
+  const pageUrl = await getCommentPageUrl(db, id)
   const result = await comments.editComment(id, body.content)
+  invalidateCommentCaches(c, db, pageUrl)
   return c.json(result)
 })
 
 adminComments.delete('/:id', async (c) => {
-  const comments = new CommentService(c.env.DB)
+  const db = c.env.DB
+  const comments = new CommentService(db)
   const id = parseInt(c.req.param('id'))
+  const pageUrl = await getCommentPageUrl(db, id)
   const result = await comments.deleteComment(id)
+  invalidateCommentCaches(c, db, pageUrl)
   return c.json(result)
 })
 
 adminComments.post('/:id/restore', async (c) => {
-  const comments = new CommentService(c.env.DB)
+  const db = c.env.DB
+  const comments = new CommentService(db)
   const id = parseInt(c.req.param('id'))
+  const pageUrl = await getCommentPageUrl(db, id)
   const result = await comments.restoreComment(id)
+  invalidateCommentCaches(c, db, pageUrl)
   return c.json(result)
 })
 
 adminComments.delete('/:id/permanent', async (c) => {
-  const comments = new CommentService(c.env.DB)
+  const db = c.env.DB
+  const comments = new CommentService(db)
   const id = parseInt(c.req.param('id'))
+  const pageUrl = await getCommentPageUrl(db, id)
   const result = await comments.permanentDeleteComment(id)
+  invalidateCommentCaches(c, db, pageUrl)
   return c.json(result)
 })
 
@@ -438,6 +495,8 @@ adminComments.post('/', async (c) => {
 
   const body = await c.req.json()
   const result = await comments.createAdminComment(body, ip)
+  const pageUrl = body.page_url || body.url
+  invalidateCommentCaches(c, db, pageUrl)
   return c.json(result)
 })
 
@@ -463,6 +522,8 @@ adminReactions.post('/vote', async (c) => {
   }
 
   const result = await reactions.toggleAdminVote(body.comment_id, ip, body.reaction_type)
+  const pageUrl = await getCommentPageUrl(db, body.comment_id)
+  invalidateCommentCaches(c, db, pageUrl)
   return c.json(result)
 })
 
@@ -479,13 +540,18 @@ adminReactions.delete('/by-url', async (c) => {
   const url = c.req.query('url')
   if (!url) return c.json({ error: 'URL is required' }, 400)
   const { meta } = await db.prepare('DELETE FROM post_reactions WHERE page_url = ?').bind(url).run()
+  invalidateCommentCaches(c, db, url)
   return c.json({ success: true, deleted: meta.changes || 0 })
 })
 
 adminReactions.delete('/:id', async (c) => {
-  const reactions = new ReactionService(c.env.DB)
+  const db = c.env.DB
+  const reactions = new ReactionService(db)
   const id = parseInt(c.req.param('id'))
+  // Look up page_url before deleting for cache invalidation
+  const row = await db.prepare('SELECT page_url FROM post_reactions WHERE id = ?').bind(id).first()
   const result = await reactions.deleteReaction(id)
+  if (row?.page_url) invalidateCommentCaches(c, db, row.page_url as string)
   return c.json(result)
 })
 

@@ -4,12 +4,12 @@ compatibility_date = "2024-03-20"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "comments-db4"
-database_id = "262c07a1-15a6-4a84-985a-f889faf15644"
+database_name = "comments-db5"
+database_id = "fb51fd73-d414-4a4a-840a-dfe2cc644074"
 
 [assets]
 directory = "./public"
 binding = "ASSETS"
 
 [vars]
-ALLOWED_ORIGINS = "*"
+ALLOWED_ORIGINS = "https://ifard.ir"
