@@ -231,7 +231,7 @@
             container.innerHTML = '<div class="loading">Loading comments...</div>';
 
             try {
-                const response = await fetch(`${API_URL}?action=recent&limit=${limit}`);
+                const response = await fetch(`${API_URL}/comments/recent?limit=${limit}`);
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);

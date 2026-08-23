@@ -41,7 +41,7 @@ async function resolveCommentsLanguage(apiUrl, container) {
         return window.COMMENTS_CONFIG.language;
     }
     try {
-        const response = await fetch(`${apiUrl}?action=widget_config`);
+        const response = await fetch(`${apiUrl}/config`);
         if (response.ok) {
             const data = await response.json();
             if (data.language) {
@@ -167,7 +167,7 @@ class CommentSystem {
         const toggleEls = document.querySelectorAll(`.reaction-picker-emoji[data-reaction-target="post"][data-reaction="${reactionType}"], .btn-reaction.btn-post-reaction[data-reaction="${reactionType}"]`);
         toggleEls.forEach(el => el.disabled = true);
         try {
-            const response = await fetch(`${this.apiUrl}?action=post_reaction`, {
+            const response = await fetch(`${this.apiUrl}/reactions/post`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ page_url: this.pageUrl, reaction_type: reactionType })
@@ -289,7 +289,7 @@ class CommentSystem {
         if ([...toggleEls].some(el => el.disabled)) return;
         toggleEls.forEach(el => el.disabled = true);
         try {
-            const response = await fetch(`${this.apiUrl}?action=vote`, {
+            const response = await fetch(`${this.apiUrl}/reactions/vote`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ comment_id: commentId, reaction_type: reactionType })
@@ -428,7 +428,7 @@ class CommentSystem {
 
     async fetchEnabledReactions() {
         try {
-            const response = await fetch(`${this.apiUrl}?action=widget_config`);
+            const response = await fetch(`${this.apiUrl}/config`);
             if (response.ok) {
                 const data = await response.json();
                 if (Array.isArray(data.enabled_reactions) && data.enabled_reactions.length > 0) {
@@ -565,7 +565,7 @@ class CommentSystem {
         };
 
         try {
-            const response = await fetch(`${this.apiUrl}?action=post`, {
+            const response = await fetch(`${this.apiUrl}/comments`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -611,7 +611,7 @@ class CommentSystem {
 
     async loadComments() {
         try {
-            const response = await fetch(`${this.apiUrl}?action=comments&url=${encodeURIComponent(this.pageUrl)}`);
+            const response = await fetch(`${this.apiUrl}/comments?url=${encodeURIComponent(this.pageUrl)}`);
             const data = await response.json();
 
             if (response.ok) {

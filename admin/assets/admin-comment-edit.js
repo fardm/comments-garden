@@ -77,7 +77,7 @@ async function saveCommentEdit(commentId) {
 
     try {
         await AdminAuth.ensureCsrfToken();
-        const response = await fetch(`${API_URL}?action=edit_content&id=${commentId}`, {
+        const response = await fetch(`${API_URL}/admin/comments/${commentId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
             credentials: 'include',

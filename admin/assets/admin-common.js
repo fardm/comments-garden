@@ -18,7 +18,7 @@
  *   AdminAuth.init({
  *     // URL used to verify an existing session on page load.
  *     // Should be a lightweight admin-only endpoint for this page.
- *     authProbeUrl: `${API_URL}?action=pending&limit=1`,
+ *     authProbeUrl: `${API_URL}/admin/comments?limit=1`,
  *
  *     // Called after successful auth (either existing session or fresh login).
  *     onSuccess: () => loadDashboard(),
@@ -51,7 +51,7 @@ const AdminAuth = (() => {
         if (!_csrfToken) _csrfToken = _readCsrfFromCookie();
         if (!_csrfToken) {
             try {
-                const r = await fetch(`${API_URL}?action=csrf_token`, { credentials: 'include' });
+                const r = await fetch(`${API_URL}/auth/csrf-token`, { credentials: 'include' });
                 _csrfToken = (await r.json()).token ?? null;
             } catch (e) {
                 console.error('[AdminAuth] CSRF fetch failed', e);
@@ -92,7 +92,7 @@ const AdminAuth = (() => {
             const password = pwdEl ? pwdEl.value : '';
 
             try {
-                const r = await fetch(`${API_URL}?action=login`, {
+                const r = await fetch(`${API_URL}/auth/login`, {
                     method:  'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -147,7 +147,7 @@ const AdminAuth = (() => {
     async function logout() {
         if (!confirm('Are you sure you want to log out?')) return;
         try {
-            await fetch(`${API_URL}?action=logout`, { method: 'POST', credentials: 'include' });
+            await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
         } catch (_) {}
         location.reload();
     }
