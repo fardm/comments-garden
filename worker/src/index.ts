@@ -781,7 +781,7 @@ function handleLegacyAction(c: any): Response | null {
   if (action === 'recent') return legacyActionRedirect(c, '/api/comments/recent')
   if (action === 'post') return c.redirect('/api/comments', 302)
   if (action === 'post_reaction') return c.redirect('/api/reactions/post', 302)
-  if (action === 'vote') return c.redirect('/api/reactions/toggle', 302)
+  if (action === 'vote') return c.redirect('/api/reactions/toggle', 307)
   if (action === 'post_reactions_summary') return legacyActionRedirect(c, '/api/reactions/post/summary')
 
   // Auth routes
@@ -797,7 +797,7 @@ function handleLegacyAction(c: any): Response | null {
   if (action === 'set_password') return c.redirect('/api/admin/auth/password', 302)
 
   // Admin reaction routes
-  if (action === 'admin_vote') return c.redirect('/api/admin/reactions/toggle', 302)
+  if (action === 'admin_vote') return c.redirect('/api/admin/reactions/toggle', 307)
   if (action === 'post_reactions_latest') return legacyActionRedirect(c, '/api/admin/reactions')
   if (action === 'delete_single_reaction') {
     const id = new URL(c.req.url).searchParams.get('id')
