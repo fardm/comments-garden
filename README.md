@@ -1,5 +1,7 @@
 # Comments Garden
 
+<img src="admin/assets/favicon.svg" width=75px style="align-self: center; border-radius: 100%;">
+
 Comments Garden is a lightweight commenting system for static websites, powered by Cloudflare Workers and D1.
 
 ## Features
