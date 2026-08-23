@@ -466,11 +466,11 @@ class CommentSystem {
                     <h3 class="comments-title"></h3>
                     <p class="befor-form-comment">${this.escapeHtml(this.t('beforeForm'))}</p>
                     ${formHtml}
+                    ${this.renderBranding()}
                 </div>
                 <div id="comments-list" class="comments-list">
                     <p class="loading">${this.escapeHtml(this.t('loadingComments'))}</p>
                 </div>
-                ${this.renderBranding()}
             </div>
         `;
 
