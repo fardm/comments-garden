@@ -360,26 +360,20 @@ adminComments.get('/', async (c) => {
 
   const result = await stmt.bind(...params, limit, offset).all()
 
-  const commentIdsAll = result.results.map((c: any) => c.id).join(',')
-  const votesMapAll = new Map<number, Record<string, any>>()
-  const adminReactionsMap = new Map<number, string[]>()
-  if (commentIdsAll) {
-    const { results: votes } = await db.prepare(`SELECT comment_id, reaction_type, author_role, COUNT(*) as count FROM comment_reactions WHERE comment_id IN (${commentIdsAll}) GROUP BY comment_id, reaction_type, author_role`).all()
-    for (const v of votes) {
-      const cId = v.comment_id as number
-      const rType = v.reaction_type as string
-      if (v.author_role === 'admin') {
-        if (!adminReactionsMap.has(cId)) adminReactionsMap.set(cId, [])
-        adminReactionsMap.get(cId)!.push(rType)
-      } else {
-        if (!votesMapAll.has(cId)) votesMapAll.set(cId, {})
-        votesMapAll.get(cId)![rType] = v.count as number
-      }
+  const commentIdsAll = result.results.map((c: any) => c.id as number)
+  const { votesMap: votesMapAll, adminReactionsMap } = await new ReactionService(db).getCommentReactionsBatch(commentIdsAll)
+  // Admin listing returns flat counts (not {count, voted} objects) — flatten
+  const flatVotesMap = new Map<number, Record<string, any>>()
+  for (const [cId, reactions] of votesMapAll) {
+    const flat: Record<string, any> = {}
+    for (const [rType, data] of Object.entries(reactions)) {
+      flat[rType] = data.count
     }
+    flatVotesMap.set(cId, flat)
   }
 
   for (const comment of result.results) {
-    comment.votes_by_reaction_type = votesMapAll.get(comment.id as number) || {}
+    comment.votes_by_reaction_type = flatVotesMap.get(comment.id as number) || {}
     comment.admin_reactions = adminReactionsMap.get(comment.id as number) || []
   }
 
@@ -404,16 +398,15 @@ adminComments.get('/pending', async (c) => {
 
   const result = await db.prepare("SELECT * FROM comments WHERE status = 'pending' ORDER BY created_at DESC").all()
 
-  const commentIds = result.results.map((c: any) => c.id).join(',')
-  const votesMap = new Map<number, Record<string, any>>()
-  if (commentIds) {
-    const { results: votes } = await db.prepare(`SELECT comment_id, reaction_type, COUNT(*) as count FROM comment_reactions WHERE comment_id IN (${commentIds}) GROUP BY comment_id, reaction_type`).all()
-    for (const v of votes) {
-      const cId = v.comment_id as number
-      if (!votesMap.has(cId)) votesMap.set(cId, {})
-      const rType = v.reaction_type as string
-      votesMap.get(cId)![rType] = v.count as number
+  const commentIds = result.results.map((c: any) => c.id as number)
+  const { votesMap } = await new ReactionService(db).getCommentReactionsBatch(commentIds)
+  // Pending listing returns flat counts (not {count, voted} objects) — flatten
+  for (const [cId, reactions] of votesMap) {
+    const flat: Record<string, any> = {}
+    for (const [rType, data] of Object.entries(reactions)) {
+      flat[rType] = data.count
     }
+    votesMap.set(cId, flat)
   }
 
   for (const comment of result.results) {

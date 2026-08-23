@@ -1,4 +1,5 @@
 import { SpamService } from './spam'
+import { ReactionService } from './reactions'
 
 export async function getGravatarHash(email: string): Promise<string> {
   const normalized = email.trim().toLowerCase()
@@ -68,30 +69,8 @@ export class CommentService {
     const repliesMap = new Map<number, any[]>()
 
     // Fetch all reactions for these comments to map to counts
-    const commentIds = comments.map(c => c.id).join(',');
-    const votesMap = new Map<number, Record<string, any>>();
-    const adminReactionsMap = new Map<number, string[]>();
-    if (commentIds) {
-      const { results: votes } = await this.db.prepare(`SELECT comment_id, reaction_type, author_role, COUNT(*) as count FROM comment_reactions WHERE comment_id IN (${commentIds}) GROUP BY comment_id, reaction_type, author_role`).all();
-
-      const { results: userVotes } = await this.db.prepare(`SELECT comment_id, reaction_type FROM comment_reactions WHERE comment_id IN (${commentIds}) AND ip_address = ? AND author_role = 'user'`).bind(ip).all();
-      const userVotesSet = new Set(userVotes.map(v => `${v.comment_id}-${v.reaction_type}`));
-
-      for (const v of votes) {
-        const cId = v.comment_id as number;
-        const rType = v.reaction_type as string;
-        if (v.author_role === 'admin') {
-          if (!adminReactionsMap.has(cId)) adminReactionsMap.set(cId, []);
-          adminReactionsMap.get(cId)!.push(rType);
-        } else {
-          if (!votesMap.has(cId)) votesMap.set(cId, {});
-          votesMap.get(cId)![rType] = {
-            count: v.count as number,
-            voted: userVotesSet.has(`${cId}-${rType}`)
-          };
-        }
-      }
-    }
+    const commentIds = comments.map(c => c.id as number);
+    const { votesMap, adminReactionsMap } = await new ReactionService(this.db).getCommentReactionsBatch(commentIds, ip);
 
     for (const comment of comments) {
       comment.votes_by_reaction_type = votesMap.get(comment.id as number) || {};

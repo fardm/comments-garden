@@ -124,4 +124,80 @@ export class ReactionService {
     return { success: true }
   }
 
+  // ── Batch reaction helpers ───────────────────────────────────────────────────
+
+  /**
+   * Build a parameterized IN clause: returns { clause: 'IN (?,?,?)', params: [id1, id2, ...] }
+   * Returns null if the array is empty.
+   */
+  private buildInClause(ids: number[]): { clause: string; params: number[] } | null {
+    if (ids.length === 0) return null
+    return {
+      clause: `IN (${ids.map(() => '?').join(',')})`,
+      params: ids,
+    }
+  }
+
+  /**
+   * Fetch reaction counts for a batch of comment IDs, fully parameterized.
+   * Returns:
+   *  - votesMap: Map<commentId, Record<reactionType, { count, voted }>>
+   *  - adminReactionsMap: Map<commentId, string[]>
+   *
+   * Pass an IP address to include per-user vote state; omit it for admin views.
+   */
+  async getCommentReactionsBatch(
+    commentIds: number[],
+    ip?: string,
+  ): Promise<{
+    votesMap: Map<number, Record<string, { count: number; voted: boolean }>>
+    adminReactionsMap: Map<number, string[]>
+  }> {
+    const votesMap = new Map<number, Record<string, { count: number; voted: boolean }>>()
+    const adminReactionsMap = new Map<number, string[]>()
+
+    const inClause = this.buildInClause(commentIds)
+    if (!inClause) return { votesMap, adminReactionsMap }
+
+    // Aggregate all reactions (user + admin) grouped by comment_id, reaction_type, author_role
+    const { results: votes } = await this.db
+      .prepare(`SELECT comment_id, reaction_type, author_role, COUNT(*) as count
+                FROM comment_reactions
+                WHERE comment_id ${inClause.clause}
+                GROUP BY comment_id, reaction_type, author_role`)
+      .bind(...inClause.params)
+      .all()
+
+    // If an IP is provided, also fetch which reactions the current user has voted on
+    let userVotesSet: Set<string> | null = null
+    if (ip) {
+      const { results: userVotes } = await this.db
+        .prepare(`SELECT comment_id, reaction_type
+                  FROM comment_reactions
+                  WHERE comment_id ${inClause.clause}
+                    AND ip_address = ?
+                    AND author_role = 'user'`)
+        .bind(...inClause.params, ip)
+        .all()
+      userVotesSet = new Set(userVotes.map(v => `${v.comment_id}-${v.reaction_type}`))
+    }
+
+    for (const v of votes) {
+      const cId = v.comment_id as number
+      const rType = v.reaction_type as string
+      if (v.author_role === 'admin') {
+        if (!adminReactionsMap.has(cId)) adminReactionsMap.set(cId, [])
+        adminReactionsMap.get(cId)!.push(rType)
+      } else {
+        if (!votesMap.has(cId)) votesMap.set(cId, {})
+        votesMap.get(cId)![rType] = {
+          count: v.count as number,
+          voted: userVotesSet ? userVotesSet.has(`${cId}-${rType}`) : false,
+        }
+      }
+    }
+
+    return { votesMap, adminReactionsMap }
+  }
+
 }
