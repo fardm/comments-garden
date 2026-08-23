@@ -470,6 +470,7 @@ class CommentSystem {
                 <div id="comments-list" class="comments-list">
                     <p class="loading">${this.escapeHtml(this.t('loadingComments'))}</p>
                 </div>
+                ${this.renderBranding()}
             </div>
         `;
 
