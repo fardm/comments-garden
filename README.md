@@ -166,7 +166,7 @@ Open the HTML file in a browser and the comments section should load and connect
 
 ## Using Comments Garden with Quartz
 
-Comments Garden can be integrated with Quartz v5 using the official Quartz plugin.
+Comments Garden can be integrated with Quartz v5 using the Quartz plugin.
 
 For installation instructions and configuration, see the [Quartz Comments Garden plugin](https://github.com/fardm/comments-garden-quartz).
 
