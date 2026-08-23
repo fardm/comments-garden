@@ -8,7 +8,7 @@ import { RateLimitService } from './ratelimit'
 import { ImportExportService } from './importexport'
 import { SettingsService } from './settings'
 import { TelegramService } from './telegram'
-import { getCachedResponse, cacheResponse, invalidatePageCache, invalidateRecentCache } from './cache'
+import { getCachedResponse, cacheResponse, invalidatePageCache, invalidateRecentCache, fetchCachedGravatar } from './cache'
 
 type Bindings = {
   DB: D1Database
@@ -767,15 +767,15 @@ app.get('/api/gravatar/:hash', async (c) => {
     return c.json({ error: 'Invalid hash' }, 400)
   }
   const size = c.req.query('s') || '80'
-  const url = `https://www.gravatar.com/avatar/${hash}?s=${size}&d=mp`
+  const gravatarUrl = `https://www.gravatar.com/avatar/${hash}?s=${size}&d=mp`
   try {
-    const resp = await fetch(url)
+    const resp = await fetchCachedGravatar(gravatarUrl)
     const body = await resp.arrayBuffer()
     return new Response(body, {
       status: resp.status,
       headers: {
         'Content-Type': resp.headers.get('Content-Type') || 'image/png',
-        'Cache-Control': 'public, max-age=300',
+        'Cache-Control': 'public, max-age=86400',
       }
     })
   } catch {

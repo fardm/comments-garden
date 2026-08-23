@@ -75,6 +75,45 @@ export function invalidatePageCache(c: any, pageUrl?: string): void {
 }
 
 /**
+ * Fetch and cache a Gravatar image.
+ * Cache key is the full Gravatar URL (includes hash + size).
+ * Only successful responses (2xx) are cached.
+ * TTL: 1 day.
+ */
+export async function fetchCachedGravatar(url: string): Promise<Response> {
+  try {
+    const cached = await cfCache.match(url)
+    if (cached) return cached
+  } catch {
+    // Fall through to fetch
+  }
+
+  try {
+    const resp = await fetch(url)
+    // Only cache successful image responses
+    if (resp.ok) {
+      const cloned = resp.clone()
+      // Store in cache (fire-and-forget from the caller's perspective,
+      // but we await here since this is the fetch path anyway)
+      const toCache = new Response(cloned.body, {
+        status: cloned.status,
+        statusText: cloned.statusText,
+        headers: new Headers(cloned.headers),
+      })
+      toCache.headers.set('Cache-Control', 'public, max-age=86400')
+      try {
+        await cfCache.put(url, toCache)
+      } catch {
+        // Best-effort caching
+      }
+    }
+    return resp
+  } catch (err) {
+    throw err
+  }
+}
+
+/**
  * Invalidate all cached responses for the recent-comments endpoint.
  * Called when comments are created, moderated, or deleted.
  */
