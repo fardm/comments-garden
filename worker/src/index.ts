@@ -728,23 +728,31 @@ app.get('/api/gravatar/:hash', async (c) => {
 // BACKWARD COMPATIBILITY LAYER
 // Maps legacy ?action= query parameter requests to the new route structure.
 // Used by:
+//   - Any external integrations, cached frontend bundles, or embeds
+//     still using the old action-based API at /api?action=...
 //   - /api.php (legacy WordPress/PHP integration path)
-//   - Any external integrations still using the old action-based API
 // ═════════════════════════════════════════════════════════════════════════════
 
-app.all('/api.php', async (c) => {
-  const method = c.req.method
+// Helper: build a redirect URL from legacy ?action= query params
+function legacyActionRedirect(c: any, newBase: string): Response {
+  const url = new URL(c.req.url)
+  url.searchParams.delete('action')
+  const qs = url.search.toString()
+  return c.redirect(newBase + qs, 302)
+}
+
+function handleLegacyAction(c: any): Response | null {
   const action = c.req.query('action')
-  if (!action) return c.json({ error: 'No action specified' }, 400)
+  if (!action) return null
 
   // Public routes
   if (action === 'widget_config') return c.redirect('/api/config', 302)
-  if (action === 'comments') return c.redirect(`/api/comments${new URL(c.req.url).search.replace(/[?&]action=[^&]*/, '')}`, 302)
-  if (action === 'recent') return c.redirect(`/api/comments/recent${new URL(c.req.url).search.replace(/[?&]action=[^&]*/, '')}`, 302)
+  if (action === 'comments') return legacyActionRedirect(c, '/api/comments')
+  if (action === 'recent') return legacyActionRedirect(c, '/api/comments/recent')
   if (action === 'post') return c.redirect('/api/comments', 302)
   if (action === 'post_reaction') return c.redirect('/api/reactions/post', 302)
   if (action === 'vote') return c.redirect('/api/reactions/vote', 302)
-  if (action === 'post_reactions_summary') return c.redirect(`/api/reactions/post/summary${new URL(c.req.url).search.replace(/[?&]action=[^&]*/, '')}`, 302)
+  if (action === 'post_reactions_summary') return legacyActionRedirect(c, '/api/reactions/post/summary')
 
   // Auth routes
   if (action === 'login') return c.redirect('/api/auth/login', 302)
@@ -752,15 +760,15 @@ app.all('/api.php', async (c) => {
   if (action === 'csrf_token') return c.redirect('/api/auth/csrf-token', 302)
 
   // Admin comment routes
-  if (action === 'all') return c.redirect(`/api/admin/comments${new URL(c.req.url).search.replace(/[?&]action=[^&]*/, '')}`, 302)
-  if (action === 'pending') return c.redirect(`/api/admin/comments/pending${new URL(c.req.url).search.replace(/[?&]action=[^&]*/, '')}`, 302)
-  if (action === 'comment_counts') return c.redirect(`/api/admin/comments/counts${new URL(c.req.url).search.replace(/[?&]action=[^&]*/, '')}`, 302)
+  if (action === 'all') return legacyActionRedirect(c, '/api/admin/comments')
+  if (action === 'pending') return legacyActionRedirect(c, '/api/admin/comments/pending')
+  if (action === 'comment_counts') return legacyActionRedirect(c, '/api/admin/comments/counts')
   if (action === 'admin_post') return c.redirect('/api/admin/comments', 302)
   if (action === 'set_password') return c.redirect('/api/admin/auth/password', 302)
 
   // Admin reaction routes
   if (action === 'admin_vote') return c.redirect('/api/admin/reactions/vote', 302)
-  if (action === 'post_reactions_latest') return c.redirect(`/api/admin/reactions${new URL(c.req.url).search.replace(/[?&]action=[^&]*/, '')}`, 302)
+  if (action === 'post_reactions_latest') return legacyActionRedirect(c, '/api/admin/reactions')
   if (action === 'delete_single_reaction') {
     const id = new URL(c.req.url).searchParams.get('id')
     return c.redirect(`/api/admin/reactions/${id}`, 302)
@@ -786,10 +794,22 @@ app.all('/api.php', async (c) => {
   if (action === 'telegram_toggle') return c.redirect('/api/admin/telegram/toggle', 302)
 
   // Admin import/export routes
-  if (action === 'import_comments') return c.redirect(`/api/admin/import-export/import${new URL(c.req.url).search.replace(/[?&]action=[^&]*/, '')}`, 302)
+  if (action === 'import_comments') return legacyActionRedirect(c, '/api/admin/import-export/import')
   if (action === 'export_comments_json') return c.redirect('/api/admin/import-export/export', 302)
 
   return c.json({ error: 'Unknown action' }, 404)
+}
+
+// Catch legacy /api?action=... requests (cached frontends, embeds, etc.)
+app.all('/api', async (c) => {
+  const redirect = handleLegacyAction(c)
+  return redirect || c.json({ error: 'Not found' }, 404)
+})
+
+// Catch legacy /api.php?action=... requests (WordPress/PHP integrations)
+app.all('/api.php', async (c) => {
+  const redirect = handleLegacyAction(c)
+  return redirect || c.json({ error: 'Not found' }, 404)
 })
 
 // ═════════════════════════════════════════════════════════════════════════════
