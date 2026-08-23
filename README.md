@@ -74,6 +74,34 @@ For example:
 
 `https://comments-garden.<your-username>.workers.dev`
 
+### Step 5: Setup Frontend
+
+#### General (for any website)
+
+Add the following code to the end of your HTML page (or wherever you want the comments section to appear). Replace `<YOUR_WORKER_URL>` with your deployed Worker URL:
+
+```html
+<link rel="stylesheet" href="<YOUR_WORKER_URL>/comments.css">
+
+<div id="comments-container"></div>
+
+<script>
+  window.COMMENTS_CONFIG = {
+    apiUrl: "<YOUR_WORKER_URL>/api",
+    pageUrl: window.location.pathname,
+    title: document.title
+  };
+</script>
+
+<script src="<YOUR_WORKER_URL>/comments.js"></script>
+```
+
+#### For Quartz users
+
+Comments Garden can be integrated with Quartz v5 using the Quartz plugin.
+
+For installation instructions and configuration, see the [Quartz Comments Garden plugin](https://github.com/fardm/comments-garden-quartz).
+
 
 ## The Admin Panel
 
@@ -127,47 +155,6 @@ You can also use this menu later to change the Bot Token, Chat ID, enable or dis
 After completing the Telegram setup or changing its settings, redeploy the Worker:
 
 `npm run deploy`
-
-
-## Testing the Worker
-
-You can test your deployed Worker without installing it into a website.
-
-Create an `index.html` file and replace `<YOUR_WORKER_URL>` with your deployed Worker URL:
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Comments Test</title>
-    <link rel="stylesheet" href="<YOUR_WORKER_URL>/comments.css">
-</head>
-<body>
-    <h1>Comments Test Page</h1>
-
-    <div id="comments-container"></div>
-
-    <script>
-        window.COMMENTS_CONFIG = {
-            apiUrl: "<YOUR_WORKER_URL>/api",
-            pageUrl: window.location.pathname,
-            title: document.title
-        };
-    </script>
-
-    <script src="<YOUR_WORKER_URL>/comments.js"></script>
-</body>
-</html>
-```
-
-Open the HTML file in a browser and the comments section should load and connect to your deployed Worker.
-
-## Using Comments Garden with Quartz
-
-Comments Garden can be integrated with Quartz v5 using the Quartz plugin.
-
-For installation instructions and configuration, see the [Quartz Comments Garden plugin](https://github.com/fardm/comments-garden-quartz).
 
 
 ## Credits
