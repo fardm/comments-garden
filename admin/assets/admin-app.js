@@ -367,7 +367,7 @@ VIEWS['comments'] = {
         let counts = { pending: 0, approved: 0, spam: 0, deleted: 0, all: 0 };
 
         const reactionDefs = [
-            { type: 'thumbsup', emoji: '👍' }, { type: 'lightbulb', emoji: '👎' },
+            { type: 'thumbsup', emoji: '👍' }, { type: 'dislike', emoji: '👎' },
             { type: 'pray', emoji: '🙏' }, { type: 'ok', emoji: '👌' },
             { type: 'fire', emoji: '🔥' }, { type: 'heart', emoji: '❤️' },
             { type: 'frown', emoji: '☹️' }, { type: 'rage', emoji: '😡' },
@@ -1058,7 +1058,7 @@ VIEWS['analytics'] = {
             });
             const POSITIVE_TYPES = ['heart', 'thumbsup', 'pray', 'ok', 'fire', 'funny'];
             const NEUTRAL_TYPES  = ['neutral'];
-            const NEGATIVE_TYPES = ['lightbulb', 'frown', 'rage'];
+            const NEGATIVE_TYPES = ['dislike', 'frown', 'rage'];
             const pos = POSITIVE_TYPES.reduce((s, t) => s + (totals[t] || 0), 0);
             const neu = NEUTRAL_TYPES.reduce((s, t) => s + (totals[t] || 0), 0);
             const neg = NEGATIVE_TYPES.reduce((s, t) => s + (totals[t] || 0), 0);
@@ -1170,8 +1170,8 @@ VIEWS['post-reactions'] = {
         </div>`,
 
     init({ hoistToWindow }) {
-        const EMOJI_BY_TYPE = { thumbsup:'👍', lightbulb:'👎', pray:'🙏', ok:'👌', fire:'🔥', heart:'❤️', frown:'☹️', rage:'😡', funny:'😄', neutral:'😐' };
-        const REACTION_TYPES = ['thumbsup','lightbulb','pray','ok','fire','heart','frown','rage','funny','neutral'];
+        const EMOJI_BY_TYPE = { thumbsup:'👍', dislike:'👎', pray:'🙏', ok:'👌', fire:'🔥', heart:'❤️', frown:'☹️', rage:'😡', funny:'😄', neutral:'😐' };
+        const REACTION_TYPES = ['thumbsup','dislike','pray','ok','fire','heart','frown','rage','funny','neutral'];
         const LATEST_PAGE_SIZE = 20;
         let latestOffset = 0;
         let latestTotal = 0;
@@ -1593,7 +1593,7 @@ VIEWS['settings-reactions'] = {
     init({ hoistToWindow }) {
         const ALL_REACTIONS = [
             { type: 'thumbsup',  emoji: '👍', label: 'Thumbs Up' },
-            { type: 'lightbulb', emoji: '👎', label: 'Thumbs Down' },
+            { type: 'dislike', emoji: '👎', label: 'Thumbs Down' },
             { type: 'pray',      emoji: '🙏', label: 'Pray' },
             { type: 'ok',        emoji: '👌', label: 'OK' },
             { type: 'fire',      emoji: '🔥', label: 'Fire' },

@@ -112,7 +112,7 @@ class CommentSystem {
     getReactionDefinitions() {
         const all = [
             { type: 'thumbsup',  emoji: '👍', label: this.t('reactions.thumbsup') },
-            { type: 'lightbulb', emoji: '👎', label: this.t('reactions.lightbulb') },
+            { type: 'dislike', emoji: '👎', label: this.t('reactions.dislike') },
             { type: 'pray',      emoji: '🙏', label: this.t('reactions.pray') },
             { type: 'ok',        emoji: '👌', label: this.t('reactions.ok') },
             { type: 'fire',      emoji: '🔥', label: this.t('reactions.fire') },
@@ -136,7 +136,7 @@ class CommentSystem {
         return {
             heart: comment.votes_heart || 0,
             thumbsup: comment.votes_thumbsup || 0,
-            lightbulb: comment.votes_lightbulb || 0,
+            dislike: comment.votes_dislike || 0,
             funny: comment.votes_funny || 0,
         };
     }

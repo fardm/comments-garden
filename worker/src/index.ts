@@ -66,7 +66,7 @@ async function getAdminAvatar(settings: SettingsService): Promise<string> {
 // ── Helper: parse enabled reactions from settings ────────────────────────────
 
 async function getEnabledReactions(settings: SettingsService): Promise<string[]> {
-  const ALL_REACTIONS = ['thumbsup','lightbulb','pray','ok','fire','heart','frown','rage','funny','neutral']
+  const ALL_REACTIONS = ['thumbsup','dislike','pray','ok','fire','heart','frown','rage','funny','neutral']
   const config = await settings.getAllSettings()
   if (config.enabled_reactions) {
     try {

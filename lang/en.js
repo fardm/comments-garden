@@ -1,7 +1,7 @@
 window.COMMENTS_I18N = {
     reactions: {
         thumbsup: 'Good point',
-        lightbulb: 'Dislike',
+        dislike: 'Dislike',
         pray: 'Thanks',
         ok: 'Okay',
         fire: 'Love it',
