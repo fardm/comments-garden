@@ -438,8 +438,28 @@ VIEWS['comments'] = {
                     const wrap = document.getElementById(`acc-reaction-picker-wrap-${commentId}`);
                     if (wrap) wrap.classList.remove('open');
 
-                    // Reload comments to reflect state
-                    loadComments();
+                    // Update reaction pills in-place to avoid scroll disruption
+                    const commentCard = document.getElementById(`comment-${commentId}`);
+                    const reactionsEl = commentCard?.querySelector('.acc-reactions');
+                    if (reactionsEl && data.counts) {
+                        const counts = data.counts || {};
+                        const adminReactions = data.admin_reactions || [];
+                        const gravatarHtml = `<img src="${adminAvatarUrl}" alt="Admin" style="border-radius: 50%; width: 16px; height: 16px; margin-right: 4px;">`;
+                        const adminPills = reactionDefs
+                            .filter(x => adminReactions.includes(x.type))
+                            .map(x => `<span class="acc-reaction-pill acc-admin-reaction-pill" style="cursor: pointer;" onclick="adminToggleCommentReaction(${commentId}, '${x.type}')" title="Click to remove">${gravatarHtml}<span class="rp-emoji">${x.emoji}</span></span>`)
+                            .join('');
+                        const userPills = reactionDefs
+                            .filter(x => (counts[x.type] || 0) > 0)
+                            .map(x => `<span class="acc-reaction-pill"><span class="rp-emoji">${x.emoji}</span><span class="rp-count">${counts[x.type]}</span></span>`)
+                            .join('');
+                        const pills = userPills + adminPills;
+                        if (pills) {
+                            reactionsEl.innerHTML = pills;
+                        } else {
+                            reactionsEl.remove();
+                        }
+                    }
                 }
             } catch (e) {
                 console.error("Admin reaction failed", e);
@@ -483,9 +503,10 @@ VIEWS['comments'] = {
             await loadComments();
         }
 
-        async function loadComments() {
+        async function loadComments(preserveScroll) {
             const container = document.getElementById('comments-list');
             if (!container) return;
+            const savedScroll = preserveScroll ? window.scrollY : null;
             container.innerHTML = '<p class="no-comments">Loading…</p>';
 
             const search = document.getElementById('c-search')?.value?.trim() || '';
@@ -515,6 +536,9 @@ VIEWS['comments'] = {
                 }
             } catch (e) {
                 container.innerHTML = `<div class="message error">Network error: ${e.message}</div>`;
+            }
+            if (savedScroll !== null) {
+                requestAnimationFrame(() => window.scrollTo(0, savedScroll));
             }
         }
 
@@ -723,7 +747,7 @@ VIEWS['comments'] = {
             const totalPages = Math.ceil(totalCount / perPage);
             if (page < 1 || page > totalPages) return;
             currentPage = page;
-            loadComments();
+            loadComments(false);
             document.querySelector('.comments-tabs')?.scrollIntoView({ behavior: 'smooth' });
         }
 
@@ -744,7 +768,7 @@ VIEWS['comments'] = {
                 const result = await r.json();
                 if (r.ok) {
                     commentEl.innerHTML = `<p style="text-align:center;padding:2rem;color:green;">✓ ${status === 'approved' ? 'Approved' : 'Marked as spam'}!</p>`;
-                    setTimeout(() => { loadComments(); loadCounts(); }, 500);
+                    setTimeout(() => { loadComments(true); loadCounts(); }, 500);
                 } else {
                     commentEl.style.opacity = '1';
                     commentEl.innerHTML = originalHTML + `<p class="error" style="margin-top:1rem;">Failed: ${result.error || 'Unknown error'}</p>`;
@@ -762,7 +786,7 @@ VIEWS['comments'] = {
                 const r = await fetch(`${API_URL}/admin/comments/${id}`, {
                     method: 'DELETE', credentials: 'include',
                 });
-                if (r.ok) { loadComments(); loadCounts(); }
+                if (r.ok) { loadComments(true); loadCounts(); }
                 else { alert(`Failed: ${(await r.json()).error || 'Unknown error'}`); }
             } catch (e) { alert('Network error while deleting comment'); }
         }
@@ -776,7 +800,7 @@ VIEWS['comments'] = {
                     credentials: 'include',
                     body: JSON.stringify({ id, csrf_token: AdminAuth.getCsrfToken() }),
                 });
-                if (r.ok) { loadComments(); loadCounts(); }
+                if (r.ok) { loadComments(true); loadCounts(); }
                 else { alert(`Failed: ${(await r.json()).error || 'Unknown error'}`); }
             } catch (e) { alert('Network error while restoring comment'); }
         }
@@ -788,7 +812,7 @@ VIEWS['comments'] = {
                 const r = await fetch(`${API_URL}/admin/comments/${id}/permanent`, {
                     method: 'DELETE', credentials: 'include',
                 });
-                if (r.ok) { loadComments(); loadCounts(); }
+                if (r.ok) { loadComments(true); loadCounts(); }
                 else { alert(`Failed: ${(await r.json()).error || 'Unknown error'}`); }
             } catch (e) { alert('Network error while deleting comment'); }
         }
@@ -861,7 +885,7 @@ VIEWS['comments'] = {
                 if (response.ok) {
                     statusEl.textContent = '✓ Reply posted successfully!';
                     statusEl.style.color = 'green';
-                    setTimeout(() => { hideReplyForm(commentId); loadComments(); }, 1000);
+                    setTimeout(() => { hideReplyForm(commentId); loadComments(true); }, 1000);
                 } else {
                     statusEl.textContent = 'Failed: ' + (result.error || 'Unknown error');
                     statusEl.style.color = 'red';
