@@ -70,10 +70,10 @@ export class CommentService {
 
     // Fetch all reactions for these comments to map to counts
     const commentIds = comments.map(c => c.id as number);
-    const { votesMap, adminReactionsMap } = await new ReactionService(this.db).getCommentReactionsBatch(commentIds, ip);
+    const { reactionsMap, adminReactionsMap } = await new ReactionService(this.db).getCommentReactionsBatch(commentIds, ip);
 
     for (const comment of comments) {
-      comment.votes_by_reaction_type = votesMap.get(comment.id as number) || {};
+      comment.reactions_by_type = reactionsMap.get(comment.id as number) || {};
       comment.admin_reactions = adminReactionsMap.get(comment.id as number) || [];
       const parentId = comment.parent_id as number | null;
       if (parentId) {

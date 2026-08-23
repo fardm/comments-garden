@@ -417,10 +417,10 @@ VIEWS['comments'] = {
         }
 
 
-        async function adminToggleVote(commentId, reactionType) {
+        async function adminToggleCommentReaction(commentId, reactionType) {
             await AdminAuth.ensureCsrfToken();
             try {
-                const response = await fetch(`${API_URL}/admin/reactions/vote`, {
+                const response = await fetch(`${API_URL}/admin/reactions/toggle`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -536,7 +536,7 @@ VIEWS['comments'] = {
                 return;
             }
             container.innerHTML = comments.map(comment => {
-                const votes = comment.votes_by_reaction_type || {};
+                const reactions = comment.reactions_by_type || {};
                 const isDeleted = comment.status === 'deleted';
                 const isSpam = comment.status === 'spam';
                 const isApproved = comment.status === 'approved';
@@ -548,12 +548,12 @@ VIEWS['comments'] = {
 
                 const adminReactionPills = reactionDefs
                     .filter(x => adminReactions.includes(x.type))
-                    .map(x => `<span class="acc-reaction-pill acc-admin-reaction-pill" style="cursor: pointer;" onclick="adminToggleVote(${comment.id}, '${x.type}')" title="Click to remove">${gravatarHtml}<span class="rp-emoji">${x.emoji}</span></span>`)
+                    .map(x => `<span class="acc-reaction-pill acc-admin-reaction-pill" style="cursor: pointer;" onclick="adminToggleCommentReaction(${comment.id}, '${x.type}')" title="Click to remove">${gravatarHtml}<span class="rp-emoji">${x.emoji}</span></span>`)
                     .join('');
 
                 const userReactionPills = reactionDefs
-                    .filter(x => (votes[x.type] || 0) > 0)
-                    .map(x => `<span class="acc-reaction-pill"><span class="rp-emoji">${x.emoji}</span><span class="rp-count">${votes[x.type]}</span></span>`)
+                    .filter(x => (reactions[x.type] || 0) > 0)
+                    .map(x => `<span class="acc-reaction-pill"><span class="rp-emoji">${x.emoji}</span><span class="rp-count">${reactions[x.type]}</span></span>`)
                     .join('');
 
                 const reactionPills = userReactionPills + adminReactionPills;
@@ -627,7 +627,7 @@ VIEWS['comments'] = {
                                 <svg xmlns="http://www.w3.org/2000/svg" height="14" viewBox="0 0 16 16" width="14" class="octicon octicon-smiley social-button-emoji"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm3.82 1.636a.75.75 0 0 1 1.038.175l.007.009c.103.118.22.222.35.31.264.178.683.37 1.285.37.602 0 1.02-.192 1.285-.371.13-.088.247-.192.35-.31l.007-.008a.75.75 0 0 1 1.222.87l-.022-.015c.02.013.021.015.021.015v.001l-.001.002-.002.003-.005.007-.014.019a2.066 2.066 0 0 1-.184.213c-.16.166-.338.316-.53.445-.63.418-1.37.638-2.127.629-.946 0-1.652-.308-2.126-.63a3.331 3.331 0 0 1-.715-.657l-.014-.02-.005-.006-.002-.003v-.002h-.001l.613-.432-.614.43a.75.75 0 0 1 .183-1.044ZM12 7a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM5 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm5.25 2.25.592.416a97.71 97.71 0 0 0-.592-.416Z" fill="#9198A1"></path></svg>
                             </button>
                             <div class="cs-reaction-picker" style="position: absolute; bottom: 100%; left: 0; display: none; background: var(--on-background); border: 1px solid var(--gray); border-radius: 6px; padding: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100; flex-wrap: wrap; width: max-content; max-width: 200px; gap: 0.25rem;">
-                                ${reactionDefs.map(r => `<button type="button" class="reaction-picker-emoji" style="border: none; background: transparent; cursor: pointer; font-size: 1.2rem; padding: 0.25rem; border-radius: 4px;" onclick="adminToggleVote(${comment.id}, '${r.type}')" title="${r.emoji}">${r.emoji}</button>`).join('')}
+                                ${reactionDefs.map(r => `<button type="button" class="reaction-picker-emoji" style="border: none; background: transparent; cursor: pointer; font-size: 1.2rem; padding: 0.25rem; border-radius: 4px;" onclick="adminToggleCommentReaction(${comment.id}, '${r.type}')" title="${r.emoji}">${r.emoji}</button>`).join('')}
                             </div>
                         </div>
                         <button class="acc-reply-btn" onclick="showReplyForm(${comment.id}, '${escapedPageUrl}')">
@@ -876,7 +876,7 @@ VIEWS['comments'] = {
             moderateComment, deleteComment, restoreComment, permanentDelete,
             startCommentEdit, showReplyForm, hideReplyForm, submitReply,
             toggleCommentMenu, switchView,
-            toggleAdminReactionPicker, adminToggleVote
+            toggleAdminReactionPicker, adminToggleCommentReaction
         });
 
         // Close dropdown menus on outside click

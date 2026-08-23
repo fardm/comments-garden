@@ -316,13 +316,13 @@
 }
 
 
-#comments-container .comments-system button.btn-reaction-funny.voted {
+#comments-container .comments-system button.btn-reaction-funny.reacted {
     color: var(--secondary) !important;
     border-color: var(--secondary) !important;
     filter: var(--btn-brightness);
 }
 
-#comments-container .comments-system button.btn-reaction.voted {
+#comments-container .comments-system button.btn-reaction.reacted {
     /* Fallback styling for new reaction types */
     color: var(--secondary) !important;
     border-color: var(--secondary) !important;

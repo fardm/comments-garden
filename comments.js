@@ -129,16 +129,10 @@ class CommentSystem {
     }
 
     getCommentReactionCounts(comment) {
-        // New backend returns `votes_by_reaction_type`, old one exposes only 4 fields.
-        if (comment && comment.votes_by_reaction_type && typeof comment.votes_by_reaction_type === 'object') {
-            return comment.votes_by_reaction_type;
+        if (comment && comment.reactions_by_type && typeof comment.reactions_by_type === 'object') {
+            return comment.reactions_by_type;
         }
-        return {
-            heart: comment.votes_heart || 0,
-            thumbsup: comment.votes_thumbsup || 0,
-            dislike: comment.votes_dislike || 0,
-            funny: comment.votes_funny || 0,
-        };
+        return {};
     }
 
     getPostReactions() {
@@ -177,7 +171,7 @@ class CommentSystem {
                 const data = this.getPostReactions();
                 const key = this.pageUrl;
                 if (!data[key]) data[key] = [];
-                if (result.voted) {
+                if (result.reacted) {
                     if (!data[key].includes(reactionType)) data[key].push(reactionType);
                 } else {
                     data[key] = data[key].filter(r => r !== reactionType);
@@ -190,7 +184,7 @@ class CommentSystem {
                 for (const [rtype, count] of Object.entries(result.counts || {})) {
                     updatedCounts[rtype] = {
                         count: count,
-                        voted: (rtype === reactionType) ? result.voted : this.hasPostReacted(rtype)
+                        reacted: (rtype === reactionType) ? result.reacted : this.hasPostReacted(rtype)
                     };
                 }
 
@@ -217,9 +211,9 @@ class CommentSystem {
         }, 0);
         const badgesHtml = usedReactions.map(r => {
             const count = typeof counts[r.type] === 'object' ? counts[r.type].count : (counts[r.type] || 0);
-            const serverVoted = typeof counts[r.type] === 'object' && counts[r.type].voted;
-            const voted = serverVoted || this.hasPostReacted(r.type);
-            return `<button class="btn-reaction btn-post-reaction btn-reaction-${r.type}${voted ? ' voted' : ''}"
+            const serverReacted = typeof counts[r.type] === 'object' && counts[r.type].reacted;
+            const reacted = serverReacted || this.hasPostReacted(r.type);
+            return `<button class="btn-reaction btn-post-reaction btn-reaction-${r.type}${reacted ? ' reacted' : ''}"
                                     data-reaction-target="post"
                                     data-reaction="${r.type}"
                                     onclick="commentsWidget.handlePostReaction('${r.type}')"
@@ -260,10 +254,9 @@ class CommentSystem {
         `;
     }
 
-    getVotedComments() {
+    getUserCommentReactions() {
         try {
-            const data = JSON.parse(localStorage.getItem('comment_votes') || '{}');
-            // Fallback: if old format (array), convert to empty object
+            const data = JSON.parse(localStorage.getItem('comment_reactions') || '{}');
             if (Array.isArray(data)) return {};
             return data;
         } catch (e) {
@@ -271,25 +264,25 @@ class CommentSystem {
         }
     }
 
-    setVotedComments(data) {
+    setUserCommentReactions(data) {
         try {
-            localStorage.setItem('comment_votes', JSON.stringify(data));
+            localStorage.setItem('comment_reactions', JSON.stringify(data));
         } catch (e) {}
     }
 
-    hasVoted(commentId, reactionType) {
-        const data = this.getVotedComments();
+    hasReacted(commentId, reactionType) {
+        const data = this.getUserCommentReactions();
         return (data[commentId] || []).includes(reactionType);
     }
 
-    async handleVote(commentId, reactionType) {
+    async handleCommentReaction(commentId, reactionType) {
         this.closeAllReactionPickers();
 
         const toggleEls = document.querySelectorAll(`.btn-reaction[data-comment-id="${commentId}"][data-reaction="${reactionType}"], .reaction-picker-emoji[data-comment-id="${commentId}"][data-reaction="${reactionType}"]`);
         if ([...toggleEls].some(el => el.disabled)) return;
         toggleEls.forEach(el => el.disabled = true);
         try {
-            const response = await fetch(`${this.apiUrl}/reactions/vote`, {
+            const response = await fetch(`${this.apiUrl}/reactions/toggle`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ comment_id: commentId, reaction_type: reactionType })
@@ -297,16 +290,16 @@ class CommentSystem {
             const result = await response.json();
             if (response.ok) {
                 // Update localStorage
-                const data = this.getVotedComments();
+                const data = this.getUserCommentReactions();
                 const key = String(commentId);
                 if (!data[key]) data[key] = [];
-                if (result.voted) {
+                if (result.reacted) {
                     if (!data[key].includes(reactionType)) data[key].push(reactionType);
                 } else {
                     data[key] = data[key].filter(r => r !== reactionType);
                     if (data[key].length === 0) delete data[key];
                 }
-                this.setVotedComments(data);
+                this.setUserCommentReactions(data);
 
                 // Update the memory object directly to allow real-time updates
                 const commentEl = document.querySelector(`.comment[data-id="${commentId}"]`);
@@ -361,13 +354,13 @@ class CommentSystem {
         if (wrap) wrap.classList.remove('no-badges');
         container.innerHTML = adminHtml + used.map(r => {
             const count = typeof counts[r.type] === 'object' ? counts[r.type].count : (counts[r.type] || 0);
-            const serverVoted = typeof counts[r.type] === 'object' && counts[r.type].voted;
-            const voted = serverVoted || this.hasVoted(commentId, r.type);
-            return `<button class="btn-reaction btn-reaction-${r.type}${voted ? ' voted' : ''}"
+            const serverReacted = typeof counts[r.type] === 'object' && counts[r.type].reacted;
+            const reacted = serverReacted || this.hasReacted(commentId, r.type);
+            return `<button class="btn-reaction btn-reaction-${r.type}${reacted ? ' reacted' : ''}"
                             data-reaction-target="comment"
                             data-comment-id="${commentId}"
                             data-reaction="${r.type}"
-                            onclick="commentsWidget.handleVote(${commentId}, '${r.type}')"
+                            onclick="commentsWidget.handleCommentReaction(${commentId}, '${r.type}')"
                             title="${r.label}">
                         <span class="reaction-emoji">${r.emoji}</span><span class="reaction-count">${count > 0 ? count : ''}</span>
                     </button>`;
@@ -391,9 +384,9 @@ class CommentSystem {
         container.classList.remove('no-badges');
         container.innerHTML = used.map(r => {
             const count = typeof counts[r.type] === 'object' ? counts[r.type].count : (counts[r.type] || 0);
-            const serverVoted = typeof counts[r.type] === 'object' && counts[r.type].voted;
-            const voted = serverVoted || this.hasPostReacted(r.type);
-            return `<button class="btn-reaction btn-post-reaction btn-reaction-${r.type}${voted ? ' voted' : ''}"
+            const serverReacted = typeof counts[r.type] === 'object' && counts[r.type].reacted;
+            const reacted = serverReacted || this.hasPostReacted(r.type);
+            return `<button class="btn-reaction btn-post-reaction btn-reaction-${r.type}${reacted ? ' reacted' : ''}"
                             data-reaction-target="post"
                             data-reaction="${r.type}"
                             onclick="commentsWidget.handlePostReaction('${r.type}')"
@@ -719,12 +712,12 @@ class CommentSystem {
             return count > 0;
         }).map(r => {
             const count = typeof reactionCounts[r.type] === 'object' ? reactionCounts[r.type].count : (reactionCounts[r.type] || 0);
-            const serverVoted = typeof reactionCounts[r.type] === 'object' && reactionCounts[r.type].voted;
-            const voted = serverVoted || this.hasVoted(comment.id, r.type);
-            return `<button class="btn-reaction btn-reaction-${r.type}${voted ? ' voted' : ''}"
+            const serverReacted = typeof reactionCounts[r.type] === 'object' && reactionCounts[r.type].reacted;
+            const reacted = serverReacted || this.hasReacted(comment.id, r.type);
+            return `<button class="btn-reaction btn-reaction-${r.type}${reacted ? ' reacted' : ''}"
                             data-reaction-target="comment"
                             data-comment-id="${comment.id}" data-reaction="${r.type}"
-                            onclick="commentsWidget.handleVote(${comment.id}, '${r.type}')"
+                            onclick="commentsWidget.handleCommentReaction(${comment.id}, '${r.type}')"
                             title="${r.label}">
                         <span class="reaction-emoji">${r.emoji}</span><span class="reaction-count">${count > 0 ? count : ''}</span>
                     </button>`;
@@ -747,7 +740,7 @@ class CommentSystem {
                                         data-reaction-target="comment"
                                         data-comment-id="${comment.id}"
                                         data-reaction="${r.type}"
-                                        onclick="commentsWidget.handleVote(${comment.id}, '${r.type}')"
+                                        onclick="commentsWidget.handleCommentReaction(${comment.id}, '${r.type}')"
                                         title="${r.label}">
                                     <span class="reaction-picker-emoji-visual">${r.emoji}</span>
                                 </button>`;

@@ -200,7 +200,7 @@ app.post('/api/reactions/post', async (c) => {
 
   const body = await c.req.json()
   if (await ratelimit.isCommentRateLimited(ip)) return c.json({ error: "Too many comments. Please try again later." }, 429)
-  if (await ratelimit.isVoteRateLimited(ip)) return c.json({ error: "Too many votes. Please try again later." }, 429)
+  if (await ratelimit.isReactionRateLimited(ip)) return c.json({ error: "Too many reactions. Please try again later." }, 429)
 
   const enabledReactions = await getEnabledReactions(settings)
   if (!enabledReactions.includes(body.reaction_type)) {
@@ -213,7 +213,7 @@ app.post('/api/reactions/post', async (c) => {
   return c.json(result)
 })
 
-app.post('/api/reactions/vote', async (c) => {
+app.post('/api/reactions/toggle', async (c) => {
   const db = c.env.DB
   const ip = c.req.header('CF-Connecting-IP') || '127.0.0.1'
   const reactions = new ReactionService(db)
@@ -222,14 +222,14 @@ app.post('/api/reactions/vote', async (c) => {
 
   const body = await c.req.json()
   if (await ratelimit.isCommentRateLimited(ip)) return c.json({ error: "Too many comments. Please try again later." }, 429)
-  if (await ratelimit.isVoteRateLimited(ip)) return c.json({ error: "Too many votes. Please try again later." }, 429)
+  if (await ratelimit.isReactionRateLimited(ip)) return c.json({ error: "Too many reactions. Please try again later." }, 429)
 
   const enabledReactions = await getEnabledReactions(settings)
   if (!enabledReactions.includes(body.reaction_type)) {
     return c.json({ error: 'Reaction type is not enabled' }, 400)
   }
 
-  const result = await reactions.toggleVote(body.comment_id, ip, body.reaction_type)
+  const result = await reactions.toggleCommentReaction(body.comment_id, ip, body.reaction_type)
   // Invalidate cache — look up the comment's page_url
   const pageUrl = await getCommentPageUrl(db, body.comment_id)
   invalidateCommentCaches(c, db, pageUrl)
@@ -361,19 +361,19 @@ adminComments.get('/', async (c) => {
   const result = await stmt.bind(...params, limit, offset).all()
 
   const commentIdsAll = result.results.map((c: any) => c.id as number)
-  const { votesMap: votesMapAll, adminReactionsMap } = await new ReactionService(db).getCommentReactionsBatch(commentIdsAll)
-  // Admin listing returns flat counts (not {count, voted} objects) — flatten
-  const flatVotesMap = new Map<number, Record<string, any>>()
-  for (const [cId, reactions] of votesMapAll) {
+  const { reactionsMap: reactionsMapAll, adminReactionsMap } = await new ReactionService(db).getCommentReactionsBatch(commentIdsAll)
+  // Admin listing returns flat counts (not {count, reacted} objects) — flatten
+  const flatReactionsMap = new Map<number, Record<string, any>>()
+  for (const [cId, reactions] of reactionsMapAll) {
     const flat: Record<string, any> = {}
     for (const [rType, data] of Object.entries(reactions)) {
       flat[rType] = data.count
     }
-    flatVotesMap.set(cId, flat)
+    flatReactionsMap.set(cId, flat)
   }
 
   for (const comment of result.results) {
-    comment.votes_by_reaction_type = flatVotesMap.get(comment.id as number) || {}
+    comment.reactions_by_type = flatReactionsMap.get(comment.id as number) || {}
     comment.admin_reactions = adminReactionsMap.get(comment.id as number) || []
   }
 
@@ -399,18 +399,18 @@ adminComments.get('/pending', async (c) => {
   const result = await db.prepare("SELECT * FROM comments WHERE status = 'pending' ORDER BY created_at DESC").all()
 
   const commentIds = result.results.map((c: any) => c.id as number)
-  const { votesMap } = await new ReactionService(db).getCommentReactionsBatch(commentIds)
-  // Pending listing returns flat counts (not {count, voted} objects) — flatten
-  for (const [cId, reactions] of votesMap) {
+  const { reactionsMap } = await new ReactionService(db).getCommentReactionsBatch(commentIds)
+  // Pending listing returns flat counts (not {count, reacted} objects) — flatten
+  for (const [cId, reactions] of reactionsMap) {
     const flat: Record<string, any> = {}
     for (const [rType, data] of Object.entries(reactions)) {
       flat[rType] = data.count
     }
-    votesMap.set(cId, flat)
+    reactionsMap.set(cId, flat)
   }
 
   for (const comment of result.results) {
-    comment.votes_by_reaction_type = votesMap.get(comment.id as number) || {}
+    comment.reactions_by_type = reactionsMap.get(comment.id as number) || {}
   }
 
   return c.json({ comments: result.results, total: result.results.length })
@@ -500,7 +500,7 @@ app.route('/api/admin/comments', adminComments)
 
 const adminReactions = new Hono<{ Bindings: Bindings }>()
 
-adminReactions.post('/vote', async (c) => {
+adminReactions.post('/toggle', async (c) => {
   const db = c.env.DB
   const ip = c.req.header('CF-Connecting-IP') || '127.0.0.1'
   const reactions = new ReactionService(db)
@@ -513,7 +513,7 @@ adminReactions.post('/vote', async (c) => {
     return c.json({ error: 'Reaction type is not enabled' }, 400)
   }
 
-  const result = await reactions.toggleAdminVote(body.comment_id, ip, body.reaction_type)
+  const result = await reactions.toggleAdminCommentReaction(body.comment_id, ip, body.reaction_type)
   const pageUrl = await getCommentPageUrl(db, body.comment_id)
   invalidateCommentCaches(c, db, pageUrl)
   return c.json(result)
@@ -781,7 +781,7 @@ function handleLegacyAction(c: any): Response | null {
   if (action === 'recent') return legacyActionRedirect(c, '/api/comments/recent')
   if (action === 'post') return c.redirect('/api/comments', 302)
   if (action === 'post_reaction') return c.redirect('/api/reactions/post', 302)
-  if (action === 'vote') return c.redirect('/api/reactions/vote', 302)
+  if (action === 'vote') return c.redirect('/api/reactions/toggle', 302)
   if (action === 'post_reactions_summary') return legacyActionRedirect(c, '/api/reactions/post/summary')
 
   // Auth routes
@@ -797,7 +797,7 @@ function handleLegacyAction(c: any): Response | null {
   if (action === 'set_password') return c.redirect('/api/admin/auth/password', 302)
 
   // Admin reaction routes
-  if (action === 'admin_vote') return c.redirect('/api/admin/reactions/vote', 302)
+  if (action === 'admin_vote') return c.redirect('/api/admin/reactions/toggle', 302)
   if (action === 'post_reactions_latest') return legacyActionRedirect(c, '/api/admin/reactions')
   if (action === 'delete_single_reaction') {
     const id = new URL(c.req.url).searchParams.get('id')

@@ -5,14 +5,14 @@ export class ReactionService {
     this.db = db
   }
 
-  async toggleVote(commentId: number, ip: string, reactionType: string) {
-    let voted = true;
+  async toggleCommentReaction(commentId: number, ip: string, reactionType: string) {
+    let reacted = true;
     try {
       await this.db.prepare('INSERT INTO comment_reactions (comment_id, ip_address, reaction_type) VALUES (?, ?, ?)').bind(commentId, ip, reactionType).run()
     } catch (e) {
       // SQLite UNIQUE constraint violation
       await this.db.prepare('DELETE FROM comment_reactions WHERE comment_id = ? AND ip_address = ? AND reaction_type = ?').bind(commentId, ip, reactionType).run()
-      voted = false;
+      reacted = false;
     }
 
     // Get updated counts for this comment (user reactions only — admin reactions are rendered separately)
@@ -22,17 +22,17 @@ export class ReactionService {
       counts[r.reaction_type as string] = r.count as number
     }
 
-    return { success: true, voted, counts }
+    return { success: true, reacted, counts }
   }
 
-  async toggleAdminVote(commentId: number, ip: string, reactionType: string) {
-    let voted = true;
+  async toggleAdminCommentReaction(commentId: number, ip: string, reactionType: string) {
+    let reacted = true;
     try {
       await this.db.prepare('INSERT INTO comment_reactions (comment_id, ip_address, reaction_type, author_role) VALUES (?, ?, ?, ?)').bind(commentId, ip, reactionType, 'admin').run()
     } catch (e) {
       // SQLite UNIQUE constraint violation
       await this.db.prepare('DELETE FROM comment_reactions WHERE comment_id = ? AND ip_address = ? AND reaction_type = ? AND author_role = ?').bind(commentId, ip, reactionType, 'admin').run()
-      voted = false;
+      reacted = false;
     }
 
     // Get updated counts for this comment
@@ -48,16 +48,16 @@ export class ReactionService {
       }
     }
 
-    return { success: true, voted, counts, admin_reactions: adminReactions }
+    return { success: true, reacted, counts, admin_reactions: adminReactions }
   }
 
   async togglePostReaction(url: string, ip: string, reactionType: string) {
-    let voted = true;
+    let reacted = true;
     try {
       await this.db.prepare('INSERT INTO post_reactions (page_url, ip_address, reaction_type) VALUES (?, ?, ?)').bind(url, ip, reactionType).run()
     } catch (e) {
       await this.db.prepare('DELETE FROM post_reactions WHERE page_url = ? AND ip_address = ? AND reaction_type = ?').bind(url, ip, reactionType).run()
-      voted = false;
+      reacted = false;
     }
 
     // Get updated counts for this post
@@ -67,21 +67,21 @@ export class ReactionService {
         counts[key] = summary[key].count
     }
 
-    return { success: true, voted, counts }
+    return { success: true, reacted, counts }
   }
 
   async getPostReactionsSummary(url: string, ip: string) {
     const { results } = await this.db.prepare('SELECT reaction_type, COUNT(*) as count FROM post_reactions WHERE page_url = ? GROUP BY reaction_type').bind(url).all()
 
     const userReacts = await this.db.prepare('SELECT reaction_type FROM post_reactions WHERE page_url = ? AND ip_address = ?').bind(url, ip).all()
-    const userVoted = new Set(userReacts.results.map((r: any) => r.reaction_type))
+    const userReacted = new Set(userReacts.results.map((r: any) => r.reaction_type))
 
-    const summary: Record<string, {count: number, voted: boolean}> = {}
+    const summary: Record<string, {count: number, reacted: boolean}> = {}
     for (const r of results) {
       const reactionType = r.reaction_type as string
       summary[reactionType] = {
         count: r.count as number,
-        voted: userVoted.has(reactionType)
+        reacted: userReacted.has(reactionType)
       }
     }
 
@@ -141,26 +141,26 @@ export class ReactionService {
   /**
    * Fetch reaction counts for a batch of comment IDs, fully parameterized.
    * Returns:
-   *  - votesMap: Map<commentId, Record<reactionType, { count, voted }>>
+   *  - reactionsMap: Map<commentId, Record<reactionType, { count, reacted }>>
    *  - adminReactionsMap: Map<commentId, string[]>
    *
-   * Pass an IP address to include per-user vote state; omit it for admin views.
+   * Pass an IP address to include per-user reaction state; omit it for admin views.
    */
   async getCommentReactionsBatch(
     commentIds: number[],
     ip?: string,
   ): Promise<{
-    votesMap: Map<number, Record<string, { count: number; voted: boolean }>>
+    reactionsMap: Map<number, Record<string, { count: number; reacted: boolean }>>
     adminReactionsMap: Map<number, string[]>
   }> {
-    const votesMap = new Map<number, Record<string, { count: number; voted: boolean }>>()
+    const reactionsMap = new Map<number, Record<string, { count: number; reacted: boolean }>>()
     const adminReactionsMap = new Map<number, string[]>()
 
     const inClause = this.buildInClause(commentIds)
-    if (!inClause) return { votesMap, adminReactionsMap }
+    if (!inClause) return { reactionsMap, adminReactionsMap }
 
     // Aggregate all reactions (user + admin) grouped by comment_id, reaction_type, author_role
-    const { results: votes } = await this.db
+    const { results: rows } = await this.db
       .prepare(`SELECT comment_id, reaction_type, author_role, COUNT(*) as count
                 FROM comment_reactions
                 WHERE comment_id ${inClause.clause}
@@ -168,10 +168,10 @@ export class ReactionService {
       .bind(...inClause.params)
       .all()
 
-    // If an IP is provided, also fetch which reactions the current user has voted on
-    let userVotesSet: Set<string> | null = null
+    // If an IP is provided, also fetch which reactions the current user has reacted with
+    let userReactionsSet: Set<string> | null = null
     if (ip) {
-      const { results: userVotes } = await this.db
+      const { results: userReactions } = await this.db
         .prepare(`SELECT comment_id, reaction_type
                   FROM comment_reactions
                   WHERE comment_id ${inClause.clause}
@@ -179,25 +179,25 @@ export class ReactionService {
                     AND author_role = 'user'`)
         .bind(...inClause.params, ip)
         .all()
-      userVotesSet = new Set(userVotes.map(v => `${v.comment_id}-${v.reaction_type}`))
+      userReactionsSet = new Set(userReactions.map(v => `${v.comment_id}-${v.reaction_type}`))
     }
 
-    for (const v of votes) {
+    for (const v of rows) {
       const cId = v.comment_id as number
       const rType = v.reaction_type as string
       if (v.author_role === 'admin') {
         if (!adminReactionsMap.has(cId)) adminReactionsMap.set(cId, [])
         adminReactionsMap.get(cId)!.push(rType)
       } else {
-        if (!votesMap.has(cId)) votesMap.set(cId, {})
-        votesMap.get(cId)![rType] = {
+        if (!reactionsMap.has(cId)) reactionsMap.set(cId, {})
+        reactionsMap.get(cId)![rType] = {
           count: v.count as number,
-          voted: userVotesSet ? userVotesSet.has(`${cId}-${rType}`) : false,
+          reacted: userReactionsSet ? userReactionsSet.has(`${cId}-${rType}`) : false,
         }
       }
     }
 
-    return { votesMap, adminReactionsMap }
+    return { reactionsMap, adminReactionsMap }
   }
 
 }

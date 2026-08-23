@@ -13,7 +13,7 @@ export class RateLimitService {
     return (result?.count ?? 0) >= 3
   }
 
-  async isVoteRateLimited(ip: string): Promise<boolean> {
+  async isReactionRateLimited(ip: string): Promise<boolean> {
     const result = await this.db.prepare(`
       SELECT COUNT(*) as count FROM reaction_rate_log
       WHERE ip_address = ? AND created_at > datetime('now', '-1 minute')
