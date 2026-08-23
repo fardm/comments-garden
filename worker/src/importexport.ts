@@ -15,22 +15,97 @@ export class ImportExportService {
     this.db = db
   }
 
-  // ── Export ───────────────────────────────────────────────────────
+  // ── Export (Streaming) ───────────────────────────────────────────
 
-  async exportFullJson(): Promise<ExportPayload> {
-    const [comments, postReactions, commentReactions] = await Promise.all([
-      this.db.prepare('SELECT * FROM comments ORDER BY id ASC').all(),
-      this.db.prepare('SELECT * FROM post_reactions ORDER BY id ASC').all(),
-      this.db.prepare('SELECT * FROM comment_reactions ORDER BY id ASC').all(),
-    ])
+  private static BATCH_SIZE = 500
 
-    return {
-      version: 1,
-      exported_at: new Date().toISOString(),
-      comments: comments.results,
-      post_reactions: postReactions.results,
-      comment_reactions: commentReactions.results,
+  /**
+   * Paginate over a table using cursor-based pagination (WHERE id > lastId).
+   * Yields batches of results without ever loading the full table into memory.
+   */
+  private async *paginateTable(
+    table: string,
+    batchSize: number = ImportExportService.BATCH_SIZE,
+  ): AsyncGenerator<any[]> {
+    let lastId = 0
+    while (true) {
+      const { results } = await this.db
+        .prepare(`SELECT * FROM ${table} WHERE id > ? ORDER BY id ASC LIMIT ?`)
+        .bind(lastId, batchSize)
+        .all()
+      if (results.length === 0) break
+      yield results
+      lastId = results[results.length - 1].id as number
     }
+  }
+
+  /**
+   * Write a JSON array to the writer by streaming table rows in batches.
+   * Handles commas between records and opening/closing brackets.
+   */
+  private async streamJsonArray(
+    writer: WritableStreamDefaultWriter<Uint8Array>,
+    encoder: TextEncoder,
+    table: string,
+  ): Promise<void> {
+    let firstRecord = true
+    for await (const batch of this.paginateTable(table)) {
+      for (const row of batch) {
+        if (!firstRecord) {
+          writer.write(encoder.encode(','))
+        }
+        firstRecord = false
+        writer.write(encoder.encode(JSON.stringify(row)))
+      }
+    }
+  }
+
+  /**
+   * Build a streaming Response for the export.
+   * Each dataset is paginated and streamed — no single dataset is fully loaded into memory.
+   */
+  async exportFullJson(): Promise<Response> {
+    const dateStr = new Date().toISOString().slice(0, 10)
+    const { readable, writable } = new TransformStream()
+    const writer = writable.getWriter()
+    const encoder = new TextEncoder()
+
+    // Write JSON header and start streaming immediately
+    ;(async () => {
+      try {
+        writer.write(encoder.encode('{\n'))
+        writer.write(encoder.encode(`  "version": 1,\n`))
+        writer.write(encoder.encode(`  "exported_at": "${new Date().toISOString()}",\n`))
+
+        // Stream comments array
+        writer.write(encoder.encode('  "comments": ['))
+        await this.streamJsonArray(writer, encoder, 'comments')
+        writer.write(encoder.encode('],\n'))
+
+        // Stream post_reactions array
+        writer.write(encoder.encode('  "post_reactions": ['))
+        await this.streamJsonArray(writer, encoder, 'post_reactions')
+        writer.write(encoder.encode('],\n'))
+
+        // Stream comment_reactions array (no trailing comma)
+        writer.write(encoder.encode('  "comment_reactions": ['))
+        await this.streamJsonArray(writer, encoder, 'comment_reactions')
+        writer.write(encoder.encode(']\n'))
+
+        writer.write(encoder.encode('}\n'))
+      } catch (err) {
+        console.error('[Export] Streaming export failed:', err)
+      } finally {
+        writer.close()
+      }
+    })()
+
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Disposition': `attachment; filename="comments-backup-${dateStr}.json"`,
+      },
+    })
   }
 
   // ── Preview ──────────────────────────────────────────────────────

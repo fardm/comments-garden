@@ -722,14 +722,7 @@ adminImportExport.post('/import', async (c) => {
 
 adminImportExport.get('/export', async (c) => {
   const importExport = new ImportExportService(c.env.DB)
-  const result = await importExport.exportFullJson()
-  const dateStr = new Date().toISOString().slice(0, 10)
-  return new Response(JSON.stringify(result, null, 2), {
-    headers: {
-      "Content-Type": "application/json",
-      "Content-Disposition": `attachment; filename="comments-backup-${dateStr}.json"`
-    }
-  })
+  return await importExport.exportFullJson()
 })
 
 app.route('/api/admin/import-export', adminImportExport)
