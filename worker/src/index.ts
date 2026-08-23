@@ -539,14 +539,7 @@ adminConfig.use('*', requireAdmin)
 adminConfig.get('/', async (c) => {
   const settings = new SettingsService(c.env.DB)
   const config = await settings.getAllSettings()
-  let allowed_origins = c.env.ALLOWED_ORIGINS ? c.env.ALLOWED_ORIGINS.split(',').map((o: string) => o.trim()) : ['*']
-  if (config.allowed_origins) {
-    try {
-      allowed_origins = JSON.parse(config.allowed_origins)
-    } catch {
-      allowed_origins = config.allowed_origins.split(',').map((o: string) => o.trim())
-    }
-  }
+  const allowed_origins = c.env.ALLOWED_ORIGINS ? c.env.ALLOWED_ORIGINS.split(',').map((o: string) => o.trim()) : ['*']
   return c.json({
     ...config,
     allowed_origins

@@ -196,8 +196,7 @@ function renderPageUrl(pageUrl) {
                     if (data && !data.error) {
                         window.AdminConfig = {
                             timezone: data.timezone || 'UTC',
-                            calendar: data.app_calendar || 'gregorian',
-                            allowedOrigins: data.allowed_origins || ['*']
+                            calendar: data.app_calendar || 'gregorian'
                         };
                     }
                 })
@@ -1401,10 +1400,6 @@ VIEWS['settings-general'] = {
                             <option value="persian">Solar Hijri (Jalali / شمسی)</option>
                         </select>
                     </div>
-                    <div class="setting-row">
-                        <div class="setting-label"><strong>Allowed Origins (CORS)</strong><span>Comma-separated list of domains allowed to embed the comments widget</span></div>
-                        <input type="text" id="setting-allowed-origins" class="themed-control" placeholder="https://example.com">
-                    </div>
                 </div>
             </div>
 
@@ -1431,7 +1426,7 @@ VIEWS['settings-general'] = {
         // All setting element IDs that trigger auto-save on change
         const autoSaveIds = [
             'setting-require-moderation', 'setting-comment-sort-order', 'setting-language',
-            'setting-timezone', 'setting-calendar', 'setting-allowed-origins',
+            'setting-timezone', 'setting-calendar',
             'setting-admin-name', 'setting-admin-email', 'setting-admin-url'
         ];
 
@@ -1477,7 +1472,7 @@ VIEWS['settings-general'] = {
                     document.getElementById('setting-timezone').value = cd.timezone || 'UTC';
                     document.getElementById('setting-calendar').value = cd.app_calendar || 'gregorian';
                     document.getElementById('setting-language').value = cd.app_language || 'en';
-                    document.getElementById('setting-allowed-origins').value = Array.isArray(cd.allowed_origins) ? cd.allowed_origins.join(', ') : '';
+
                 }
             } catch (e) {
                 console.error('Settings load failed', e);
@@ -1501,7 +1496,7 @@ VIEWS['settings-general'] = {
                 const timezone = document.getElementById('setting-timezone').value;
                 const calendar = document.getElementById('setting-calendar').value;
                 const language = document.getElementById('setting-language').value;
-                const allowedOrigins = document.getElementById('setting-allowed-origins').value.split(',').map(s => s.trim()).filter(s => s);
+
 
                 // Save settings (requires get_settings to preserve existing keys)
                 const sr = await fetch(`${API_URL}/admin/settings`, { credentials: 'include' });
@@ -1531,7 +1526,7 @@ VIEWS['settings-general'] = {
                     credentials: 'include',
                     body: JSON.stringify({
                         csrf_token: AdminAuth.getCsrfToken(),
-                        allowed_origins: allowedOrigins.length ? allowedOrigins : ['*'],
+
                         timezone, app_language: language, app_calendar: calendar
                     })
                 });

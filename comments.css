@@ -544,7 +544,8 @@
 .comments-system .comments-branding {
     margin: 0.75rem 0 0;
     font-size: 0.75rem;
-    color: var(--gray);
+    text-align: center;
+    direction: ltr;
 }
 
 .comments-system .comments-branding a {
@@ -562,8 +563,8 @@
 }
 
 .comments-system .comments-branding-logo {
-    width: 1em;
-    height: 1em;
+    width: 1.5em;
+    height: 1.5em;
     flex-shrink: 0;
 }
 

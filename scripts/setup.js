@@ -66,6 +66,26 @@ function updateWranglerToml(dbName, dbId) {
   fs.writeFileSync(WRANGLER_TOML, updated.join(eol));
 }
 
+// ── Allowed Origins helpers ───────────────────────────────────────────────────
+
+function getAllowedOrigins() {
+  const toml = fs.readFileSync(WRANGLER_TOML, 'utf-8');
+  const match = toml.match(/ALLOWED_ORIGINS\s*=\s*"([^"]*)"/);
+  return match ? match[1] : '*';
+}
+
+function updateAllowedOrigins(origins) {
+  const value = origins || '*';
+  const content = fs.readFileSync(WRANGLER_TOML, 'utf-8');
+  const eol = content.includes('\r\n') ? '\r\n' : '\n';
+  const lines = content.split(/\r?\n/);
+  const updated = lines.map(line => {
+    if (/^ALLOWED_ORIGINS\s*=/.test(line)) return `ALLOWED_ORIGINS = "${value}"`;
+    return line;
+  });
+  fs.writeFileSync(WRANGLER_TOML, updated.join(eol));
+}
+
 // ── Cloudflare auth check ────────────────────────────────────────────────────
 
 async function checkCloudflareAuth() {
@@ -237,11 +257,48 @@ async function optionInitialSetup() {
 
   try { fs.unlinkSync(tmpSqlPath); } catch (_) {}
 
+  // 6. Allowed Origins (CORS)
+  console.log('🌐 Allowed Origins (CORS) Setup');
+  console.log('   Allowed Origins controls which websites can embed the comments widget.');
+  console.log('   - Enter * to allow requests from any origin (development default).');
+  console.log('   - Enter one or more specific origins for stricter CORS protection.');
+  console.log('   - Multiple origins should be comma-separated, e.g.:');
+  console.log('     https://example.com, https://blog.example.com\n');
+  const currentOrigins = getAllowedOrigins();
+  const originsInput = await prompt(`   Allowed Origins [${currentOrigins}]: `);
+  const newOrigins = originsInput || currentOrigins;
+  updateAllowedOrigins(newOrigins);
+  console.log(`✅ Allowed Origins set to: ${newOrigins}\n`);
+
   console.log('\n✅ Initial setup complete!');
   console.log('\nYou can now start the local development server with:');
   console.log('  npm run dev');
   console.log('\nOr deploy to production with:');
   console.log('  npm run deploy\n');
+}
+
+async function optionEditAllowedOrigins() {
+  console.log('═══════════════════════════════════════════════════');
+  console.log('  🌐 Edit Allowed Origins (CORS)');
+  console.log('═══════════════════════════════════════════════════\n');
+
+  console.log('   Allowed Origins controls which websites can embed the comments widget.');
+  console.log('   - Enter * to allow requests from any origin (development default).');
+  console.log('   - Enter one or more specific origins for stricter CORS protection.');
+  console.log('   - Multiple origins should be comma-separated, e.g.:');
+  console.log('     https://example.com, https://blog.example.com\n');
+
+  const currentOrigins = getAllowedOrigins();
+  console.log(`   Current value: ${currentOrigins}\n`);
+
+  const originsInput = await prompt('   New Allowed Origins [leave blank to keep current]: ');
+  if (!originsInput) {
+    console.log('\nℹ️  Allowed Origins unchanged.\n');
+    return;
+  }
+
+  updateAllowedOrigins(originsInput);
+  console.log(`\n✅ Allowed Origins updated to: ${originsInput}\n`);
 }
 
 async function optionChangePassword() {
@@ -406,7 +463,8 @@ function printMenu() {
   console.log('  2. Change admin password');
   console.log('  3. Configure database');
   console.log('  4. Reinitialize database');
-  console.log('  5. Exit\n');
+  console.log('  5. Edit Allowed Origins (CORS)');
+  console.log('  6. Exit\n');
 }
 
 async function main() {
@@ -416,20 +474,22 @@ async function main() {
   if (args.includes('--setup')) { await optionInitialSetup(); process.exit(0); }
   if (args.includes('--password')) { await optionChangePassword(); process.exit(0); }
   if (args.includes('--reinit')) { await optionReinitializeDatabase(); process.exit(0); }
+  if (args.includes('--origins')) { await optionEditAllowedOrigins(); process.exit(0); }
 
   // Interactive menu
   printMenu();
 
-  const choice = await prompt('Enter option (1-5): ');
+  const choice = await prompt('Enter option (1-6): ');
 
   const actions = {
     '1': optionInitialSetup,
     '2': optionChangePassword,
     '3': optionConfigureDatabase,
     '4': optionReinitializeDatabase,
+    '5': optionEditAllowedOrigins,
   };
 
-  if (choice === '5' || choice === '') {
+  if (choice === '6' || choice === '') {
     console.log('\n👋 Goodbye.\n');
     process.exit(0);
   }

@@ -46,7 +46,7 @@ Run the setup script:
 
 `npm run setup`
 
-The setup wizard will create and configure your D1 database, initialize the database schema, and ask you to set an admin password.
+The setup wizard will create and configure your D1 database, initialize the database schema, ask you to set an admin password, and prompt you to configure **Allowed Origins** (CORS) for the comment system.
 
 ### Step 3: Local Development (Optional)
 
@@ -87,7 +87,6 @@ Log in using the admin password you created during setup.
 
 From the Admin Panel, you can configure:
 
-- **Allowed Origins** — Websites allowed to use the comment system.
 - **Timezone** — Timezone used for dates and notifications.
 - **Frontend Language** — Language displayed in the comments interface.
 - **Calendar System** — Calendar system used for dates.
