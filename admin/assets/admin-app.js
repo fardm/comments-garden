@@ -828,7 +828,7 @@ VIEWS['comments'] = {
 
             if (!adminProfileCache) {
                 try {
-                    const response = awaitfetch(`${API_URL}/admin/settings`, { credentials: 'include' });
+                    const response = await fetch(`${API_URL}/admin/settings`, { credentials: 'include' });
                     if (response.ok) {
                         const data = await response.json();
 
