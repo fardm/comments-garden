@@ -418,9 +418,16 @@ VIEWS['comments'] = {
         }
 
 
+        const _inflightReactions = new Set();
+
         async function adminToggleCommentReaction(commentId, reactionType) {
-            await AdminAuth.ensureCsrfToken();
+            // Prevent duplicate in-flight requests for the same comment
+            const key = `${commentId}:${reactionType}`;
+            if (_inflightReactions.has(key)) return;
+            _inflightReactions.add(key);
+
             try {
+                await AdminAuth.ensureCsrfToken();
                 const response = await fetch(`${API_URL}/admin/reactions/toggle`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -431,38 +438,55 @@ VIEWS['comments'] = {
                         csrf_token: AdminAuth.getCsrfToken()
                     })
                 });
-                if (response.ok) {
-                    const data = await response.json();
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    console.error('Reaction toggle failed:', err.error || response.statusText);
+                    return;
+                }
+                const data = await response.json();
 
-                    // Close picker
-                    const wrap = document.getElementById(`acc-reaction-picker-wrap-${commentId}`);
-                    if (wrap) wrap.classList.remove('open');
+                // Close picker
+                const wrap = document.getElementById(`acc-reaction-picker-wrap-${commentId}`);
+                if (wrap) wrap.classList.remove('open');
 
-                    // Update reaction pills in-place to avoid scroll disruption
-                    const commentCard = document.getElementById(`comment-${commentId}`);
-                    const reactionsEl = commentCard?.querySelector('.acc-reactions');
-                    if (reactionsEl && data.counts) {
-                        const counts = data.counts || {};
-                        const adminReactions = data.admin_reactions || [];
-                        const gravatarHtml = `<img src="${adminAvatarUrl}" alt="Admin" style="border-radius: 50%; width: 16px; height: 16px; margin-right: 4px;">`;
-                        const adminPills = reactionDefs
-                            .filter(x => adminReactions.includes(x.type))
-                            .map(x => `<span class="acc-reaction-pill acc-admin-reaction-pill" style="cursor: pointer;" onclick="adminToggleCommentReaction(${commentId}, '${x.type}')" title="Click to remove">${gravatarHtml}<span class="rp-emoji">${x.emoji}</span></span>`)
-                            .join('');
-                        const userPills = reactionDefs
-                            .filter(x => (counts[x.type] || 0) > 0)
-                            .map(x => `<span class="acc-reaction-pill"><span class="rp-emoji">${x.emoji}</span><span class="rp-count">${counts[x.type]}</span></span>`)
-                            .join('');
-                        const pills = userPills + adminPills;
-                        if (pills) {
+                // Build updated pills HTML from server response
+                const counts = data.counts || {};
+                const adminReactions = data.admin_reactions || [];
+                const gravatarHtml = `<img src="${adminAvatarUrl}" alt="Admin" style="border-radius: 50%; width: 16px; height: 16px; margin-right: 4px;">`;
+                const adminPills = reactionDefs
+                    .filter(x => adminReactions.includes(x.type))
+                    .map(x => `<span class="acc-reaction-pill acc-admin-reaction-pill" style="cursor: pointer;" onclick="adminToggleCommentReaction(${commentId}, '${x.type}')" title="Click to remove">${gravatarHtml}<span class="rp-emoji">${x.emoji}</span></span>`)
+                    .join('');
+                const userPills = reactionDefs
+                    .filter(x => (counts[x.type] || 0) > 0)
+                    .map(x => `<span class="acc-reaction-pill"><span class="rp-emoji">${x.emoji}</span><span class="rp-count">${counts[x.type]}</span></span>`)
+                    .join('');
+                const pills = userPills + adminPills;
+
+                // Find or create the reactions container
+                const commentCard = document.getElementById(`comment-${commentId}`);
+                if (!commentCard) return;
+                let reactionsEl = commentCard.querySelector('.acc-reactions');
+                if (pills) {
+                    if (reactionsEl) {
+                        reactionsEl.innerHTML = pills;
+                    } else {
+                        // No existing reactions div — create one after the content div
+                        const contentEl = commentCard.querySelector('.acc-content');
+                        if (contentEl) {
+                            reactionsEl = document.createElement('div');
+                            reactionsEl.className = 'acc-reactions';
                             reactionsEl.innerHTML = pills;
-                        } else {
-                            reactionsEl.remove();
+                            contentEl.insertAdjacentElement('afterend', reactionsEl);
                         }
                     }
+                } else if (reactionsEl) {
+                    reactionsEl.remove();
                 }
             } catch (e) {
-                console.error("Admin reaction failed", e);
+                console.error('Admin reaction failed:', e);
+            } finally {
+                _inflightReactions.delete(key);
             }
         }
 
