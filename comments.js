@@ -440,6 +440,17 @@ class CommentSystem {
         }
     }
 
+    renderBranding() {
+        const logoUrl = `${getCommentsAssetBaseUrl(this.apiUrl)}/admin/assets/favicon.svg`;
+        return `
+            <p class="comments-branding">
+                <a href="https://github.com/fardm/comments-garden" target="_blank" rel="noopener noreferrer">
+                    <img src="${logoUrl}" alt="" class="comments-branding-logo" width="14" height="14"> Comments Garden
+                </a>
+            </p>
+        `;
+    }
+
     // رندر
     render() {
         const formHtml = this.closed
