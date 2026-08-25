@@ -5,9 +5,10 @@
     --gray: rgb(138, 168, 147);
     --darkgray: #1f2e25;
     --dark: #292e1f;
-    --primary: rgb(30, 162, 116);
+    --primary: #1ea274;
     --on-primary: #ffffff;
     --red: #de3b3b;
+    --success: #22C55E;
     --background: #fafbf9;
     --on-background: #f0f5f2;
     --shadow: #d1e0d799;
@@ -276,8 +277,8 @@
 
 /* ادغام بشه */
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-success { background-color: #28a745; color: white; }
-.btn-success:hover:not(:disabled) { background-color: #218838; }
+.btn-success { background-color: var(--success); color: white; }
+.btn-success:hover:not(:disabled) { background-color: var(--success); }
 .btn-danger { background-color: #dc3545; color: white; }
 .btn-danger:hover:not(:disabled) { background-color: #c82333; }
 .btn-warning { background-color: #ffc107; color: #333; }
@@ -505,7 +506,7 @@
 }
 
 .pagination button.active {
-    background: #4a90e2;
+    background: #1ea274;
     color: white;
 }
 
@@ -569,7 +570,7 @@
 
 /* ── stat-number color variants (admin-analytics.html, admin-posts.html) */
 
-.stat-number.green   { color: #28a745; }
+.stat-number.green   { color: var(--success); }
 .stat-number.yellow  { color: #e6a817; }
 .stat-number.red     { color: #dc3545; }
 .stat-number.gray    { color: #6c757d; }

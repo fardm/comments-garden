@@ -138,7 +138,7 @@ class SentimentGauge extends HTMLElement {
 
       <div class="gauge-wrapper" role="region" aria-label="Audience Reaction Gauge">
         <div class="gauge-container">
-          <svg class="gauge-svg" viewBox="0 0 200 100" preserveAspectRatio="xMidYMax meet">
+          <svg class="gauge-svg" viewBox="0 0 200 110" preserveAspectRatio="xMidYMax meet">
             <!-- Arcs -->
             <!-- Negative Segment (0-33%) -->
             <path d="M 20 100 A 80 80 0 0 1 60 30.71" fill="none" stroke="#FF8A80" stroke-width="40" />

@@ -267,7 +267,7 @@ VIEWS['comments'] = {
 
         .acc-status-badge{display:inline-block;padding:.2rem .6rem;border-radius:4px;font-size:.75rem;font-weight:600;text-transform:capitalize;white-space:nowrap;}
         .acc-status-badge.badge-pending{background:#ffc107;color:#333;}
-        .acc-status-badge.badge-approved{background:#28a745;color:#fff;}
+        .acc-status-badge.badge-approved{background:var(--success);color:#fff;}
         .acc-status-badge.badge-spam{background:#dc3545;color:#fff;}
         .acc-status-badge.badge-deleted{background:#6c757d;color:#fff;}
 
@@ -957,8 +957,8 @@ VIEWS['analytics'] = {
         .chart-subtitle { font-size:.75rem; font-weight:400; color:#aaa; margin-left:.4rem; }
         .toggle-group { display:flex; gap:.2rem; }
         .toggle-group button { padding:.22rem .7rem; border:1px solid #ddd; background:white; border-radius:3px; font-size:.78rem; cursor:pointer; color:#666; transition:all .15s; }
-        .toggle-group button.active { background:#4a90e2; border-color:#4a90e2; color:white; }
-        .toggle-group button:hover:not(.active) { border-color:#4a90e2; color:#4a90e2; }
+        .toggle-group button.active { background:var(--success); border-color:var(--success); color:white; }
+        .toggle-group button:hover:not(.active) { border-color:var(--success); color:var(--success); }
         .chart-legend { display:flex; gap:1rem; flex-wrap:wrap; margin-top:.6rem; font-size:.8rem; }
         .legend-item { display:flex; align-items:center; gap:.3rem; color:#666; }
         .legend-swatch { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
@@ -989,7 +989,7 @@ VIEWS['analytics'] = {
                     </div>
                     <div id="timeline-chart"><div class="chart-loading">Loading…</div></div>
                     <div class="chart-legend">
-                        <span class="legend-item"><span class="legend-swatch" style="background:#28a745"></span>Approved</span>
+                        <span class="legend-item"><span class="legend-swatch" style="background:var(--success)"></span>Approved</span>
                         <span class="legend-item"><span class="legend-swatch" style="background:#ffc107"></span>Pending</span>
                         <span class="legend-item"><span class="legend-swatch" style="background:#dc3545"></span>Spam</span>
                     </div>
@@ -1070,7 +1070,7 @@ VIEWS['analytics'] = {
                 const bx=(PL+i*slotW+barOff).toFixed(2);let y=PT+cH;
                 const seg=(count,color)=>{const bh=count>0?Math.max(1.2,(count/maxVal)*cH):0;if(bh<.5)return'';y-=bh;return`<rect x="${bx}" y="${y.toFixed(2)}" width="${(+barW).toFixed(2)}" height="${bh.toFixed(2)}" fill="${color}"/>`;};
                 const other=Math.max(0,b.total-b.approved-b.pending-b.spam);
-                bars+=`<g>${seg(other,'#adb5bd')}${seg(b.spam,'#dc3545')}${seg(b.pending,'#ffc107')}${seg(b.approved,'#28a745')}</g>`;
+                bars+=`<g>${seg(other,'#adb5bd')}${seg(b.spam,'#dc3545')}${seg(b.pending,'#ffc107')}${seg(b.approved,'var(--success)')}</g>`;
                 bars+=`<rect class="tt-bar" x="${(PL+i*slotW).toFixed(2)}" y="${PT}" width="${slotW.toFixed(2)}" height="${cH}" fill="rgba(0,0,0,0)" pointer-events="all" data-i="${i}"/>`;
                 if(i%labelEvery===0||i===n-1){xLabels+=`<text x="${(PL+i*slotW+slotW/2).toFixed(1)}" y="${H-4}" text-anchor="middle" font-size="9.5" fill="#c0c0c0">${fmtPeriod(b.period,currentGranularity)}</text>`;}
             });
@@ -1096,7 +1096,7 @@ VIEWS['analytics'] = {
                 const barH=10,by=y+(ROW-barH)/2;
                 let bx=URL_W+BAR_GAP;
                 const addSeg=(w,color)=>{if(w<.5)return;rows+=`<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${w.toFixed(1)}" height="${barH}" fill="${color}" rx="1"/>`;bx+=w;};
-                addSeg(aw,'#28a745');addSeg(pw,'#ffc107');addSeg(sw,'#dc3545');addSeg(ow,'#adb5bd');
+                addSeg(aw,'var(--success)');addSeg(pw,'#ffc107');addSeg(sw,'#dc3545');addSeg(ow,'#adb5bd');
                 rows+=`<text x="${URL_X}" y="${(y+ROW/2+3.5).toFixed(1)}" font-size="9.5" fill="#555">${escapeHtml(truncUrl(p.page_url,32))}</text>`;
                 rows+=`<text x="${URL_W+BAR_GAP+tw+COUNT_GAP}" y="${(y+ROW/2+3.5).toFixed(1)}" font-size="9" fill="#999">${p.total}</text>`;
                 if(i<posts.length-1)rows+=`<line x1="0" x2="${W}" y1="${y+ROW}" y2="${y+ROW}" stroke="#f0f0f0" stroke-width="0.5"/>`;
@@ -1329,11 +1329,11 @@ VIEWS['settings-general'] = {
         .toggle-switch input { opacity:0; width:0; height:0; }
         .toggle-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; border-radius:26px; transition:.3s; }
         .toggle-slider:before { position:absolute; content:""; height:20px; width:20px; left:3px; bottom:3px; background-color:white; border-radius:50%; transition:.3s; }
-        input:checked+.toggle-slider { background-color:#4a90e2; }
+        input:checked+.toggle-slider { background-color:#1ea274; }
         input:checked+.toggle-slider:before { transform:translateX(20px); }
         .settings-toast{position:fixed;bottom:1.5rem;z-index:9999;padding:.6rem 1.2rem;border-radius:6px;font-size:.88rem;font-weight:500;pointer-events:none;opacity:0;transform:translateY(8px);transition:opacity .3s ease,transform .3s ease;box-shadow:0 2px 8px rgba(0,0,0,.12);}
         .settings-toast.show{opacity:1;transform:translateY(0);}
-        .settings-toast.success{background:var(--success,#28a745);color:#fff;}
+        .settings-toast.success{background:var(--success);color:#fff;}
         .settings-toast.error{background:var(--red,#dc3545);color:#fff;}
         html[dir="rtl"] .settings-toast{right:auto;left:1.5rem;}html:not([dir="rtl"]) .settings-toast{right:1.5rem;left:auto;}
     `,
@@ -1565,7 +1565,7 @@ VIEWS['settings-reactions'] = {
         .toggle-switch input { opacity:0; width:0; height:0; }
         .toggle-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; border-radius:26px; transition:.3s; }
         .toggle-slider:before { position:absolute; content:""; height:20px; width:20px; left:3px; bottom:3px; background-color:white; border-radius:50%; transition:.3s; }
-        input:checked+.toggle-slider { background-color:#4a90e2; }
+        input:checked+.toggle-slider { background-color:#1ea274; }
         input:checked+.toggle-slider:before { transform:translateX(20px); }
         .reaction-preview { font-size:1.3rem; margin-right:.5rem; }
         .toggle-switch.is-loading .toggle-slider { opacity:.5; pointer-events:none; }
@@ -1695,7 +1695,7 @@ VIEWS['settings-database'] = {
         .util-card-body { padding:1.5rem; }
         .db-stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:1.25rem; }
         .db-stat-item { background:var(--light); border:solid 1px var(--gray); border-radius:6px; padding:.75rem 1rem; text-align:center; }
-        .db-stat-item .num { font-size:1.4rem; font-weight:700; color:#4a90e2; }
+        .db-stat-item .num { font-size:1.4rem; font-weight:700; color:var(--primary); }
         .db-stat-item .lbl { font-size:.78rem; color:#888; text-transform:uppercase; letter-spacing:.03em; }
         .db-actions { display:flex; gap:.75rem; flex-wrap:wrap; }
         .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:1rem; z-index:9999; }
@@ -1934,7 +1934,7 @@ VIEWS['settings-notifications'] = {
         .toggle-switch input { opacity:0; width:0; height:0; }
         .toggle-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; border-radius:26px; transition:.3s; }
         .toggle-slider:before { position:absolute; content:""; height:20px; width:20px; left:3px; bottom:3px; background-color:white; border-radius:50%; transition:.3s; }
-        input:checked+.toggle-slider { background-color:#4a90e2; }
+        input:checked+.toggle-slider { background-color:#1ea274; }
         input:checked+.toggle-slider:before { transform:translateX(20px); }
     `,
     html: () => `
@@ -2013,7 +2013,7 @@ VIEWS['settings-import-export'] = {
         .file-drop input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; }
         .file-drop .drop-icon { font-size:2rem; margin-bottom:.5rem; }
         .file-drop .drop-label { font-size:.9rem; color:var(--body-text); }
-        .file-drop .file-selected { font-size:.88rem; color:#28a745; font-weight:600; margin-top:.4rem; }
+        .file-drop .file-selected { font-size:.88rem; color:var(--success); font-weight:600; margin-top:.4rem; }
         .preview-box { background:var(--on-background); border:1px solid var(--gray,#dee2e6); border-radius:6px; padding:1rem; margin:.75rem 0; font-size:.88rem; }
         .preview-box table { width:100%; border-collapse:collapse; }
         .preview-box td { padding:.3rem .5rem; }
@@ -2088,7 +2088,7 @@ VIEWS['settings-import-export'] = {
                 if(flabel) { flabel.style.display = 'block'; flabel.style.color = '#dc3545'; flabel.textContent = 'Unsupported file type. Please select a .json backup file.'; }
                 return;
             }
-            if(flabel) { flabel.style.display = 'block'; flabel.style.color = '#28a745'; flabel.textContent = `Selected: ${file.name} (${formatBytes(file.size)})`; }
+            if(flabel) { flabel.style.display = 'block'; flabel.style.color = 'var(--success)'; flabel.textContent = `Selected: ${file.name} (${formatBytes(file.size)})`; }
 
             const r = new FileReader();
             r.onload = (e) => { importFileContent = e.target.result; if(bprev) bprev.disabled = false; if(bimp) bimp.disabled = false; };
