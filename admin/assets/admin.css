@@ -1,37 +1,38 @@
 /* Colors ---------------------------------- */
 :root {
-    --light: #f9fafb;
-    --lightgray: #dfdfdf;
-    --gray: #cacaca;
-    --darkgray: #252525;
-    --dark: #1e1e1e;
-    --primary: #287cdb;
+    --light: #fafbf9;
+    --lightgray: #d1e0d9;
+    --gray: rgb(138, 168, 147);
+    --darkgray: #1f2e25;
+    --dark: #292e1f;
+    --primary: rgb(30, 162, 116);
     --on-primary: #ffffff;
     --red: #de3b3b;
-    --background: #f3f3f3;
-    --on-background: #ffffff;
-    --shadow: #f3f3f399;
-    --body-text: #141414;
-    --heading-text: #0a0a0a;
+    --background: #fafbf9;
+    --on-background: #f0f5f2;
+    --shadow: #d1e0d799;
+    --body-text: #1f2e27;
+    --heading-text: #1f2418;
 
     --bodyFont: "DanaVF", BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 [data-theme="dark"] {
-    --light: #111827;
-    --lightgray: #424d5f;
-    --gray: #646464;
-    --darkgray: #e6e7f7;
-    --dark: #f7f8ff;
-    --primary: #4a90e2;
-    --on-primary: #ffffff;
+    --light: #151b25;
+    --lightgray: #2b333f;
+    --gray: #9ba6b5;
+    --darkgray: #f5f7fa;
+    --dark: #f5f7fa;
+    --primary: #33bd8d;
+    --on-primary: #131b2a;
     --red: #de3b3b;
-    --background: #141820;
-    --on-background: #212836;
-    --shadow: #1418204a;
-    --body-text: #dee5f3;
-    --heading-text: #ffffff;
+    --background: #11161d;
+    --on-background: #1a2028;
+    --shadow: #11161d4a;
+    --body-text: #e1e5e9;
+    --heading-text: #f8fafb;
 }
+
 
 
 
@@ -174,12 +175,12 @@
 }
 
 .btn-success {
-    background-color: #28a745;
+    background-color: var(--primary);
     color: white;
 }
 
 .badge-active {
-    background-color: #28a745;
+    background-color: var(--primary);
     color: white;
 }
 
