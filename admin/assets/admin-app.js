@@ -965,7 +965,8 @@ VIEWS['analytics'] = {
         .chart-empty { padding:2rem; text-align:center; color:#ccc; font-size:.9rem; }
         .chart-loading { padding:2rem; text-align:center; color:#bbb; font-size:.9rem; }
         #chart-tooltip { position:fixed; background:rgba(25,25,25,.92); color:#fff; padding:.45rem .7rem; border-radius:5px; font-size:.8rem; pointer-events:none; z-index:9999; display:none; line-height:1.7; max-width:220px; box-shadow:0 2px 8px rgba(0,0,0,.3); }
-        @media (max-width:768px)  { .nav a { min-width:80px; font-size:.85rem; } }`,
+        sentiment-gauge { width:100%; max-width:400px; margin:0 auto; }
+        @media (max-width:768px)  { .nav a { min-width:80px; font-size:.85rem; } sentiment-gauge { max-width:100%; } }`,
 
     html: () => `
         <div id="chart-tooltip"></div>
@@ -998,8 +999,8 @@ VIEWS['analytics'] = {
                     <div id="top-posts-chart"><div class="chart-loading">Loading…</div></div>
                 </div>
                 <div class="chart-card">
-                    <div class="chart-header"><span class="chart-title">Audience Reaction Balance</span></div>
-                    <div id="reaction-balance-chart"><div class="chart-loading">Loading…</div></div>
+                    <div class="chart-header"><span class="chart-title">Sentiment Gauge</span></div>
+                    <sentiment-gauge id="admin-sentiment-gauge"></sentiment-gauge>
                 </div>
             </div>
         </div>`,
@@ -1013,7 +1014,7 @@ VIEWS['analytics'] = {
             fetch(`${API_URL}/reactions/post/summary?_=${Date.now()}`, { credentials: 'include', cache: 'no-store' })
         ]);
         if (analyticsResp.ok) { try { loadAnalytics(await analyticsResp.json()); } catch (e) { console.error('loadAnalytics failed:', e); } }
-        if (reactionsResp.ok) { try { renderReactionBalance(await reactionsResp.json()); } catch (e) { console.error('renderReactionBalance failed:', e); } }
+        if (reactionsResp.ok) { try { loadSentimentGauge(await reactionsResp.json()); } catch (e) { console.error('loadSentimentGauge failed:', e); } }
 
         function loadAnalytics(data) {
             analyticsData = data;
@@ -1025,6 +1026,23 @@ VIEWS['analytics'] = {
             document.getElementById('stat-spam').textContent       = fmt(st.spam     || 0);
             try { renderTimeline(); } catch (e) { console.error('renderTimeline failed:', e); }
             try { renderTopPosts(data.top_posts || []); } catch (e) { console.error('renderTopPosts failed:', e); }
+        }
+
+        function loadSentimentGauge(data) {
+            const gauge = document.getElementById('admin-sentiment-gauge');
+            if (!gauge) return;
+            const pages = data.pages || [];
+            const totals = {};
+            // Map API key 'dislike' to the component's key 'thumbsdown'
+            const KEY_MAP = { dislike: 'thumbsdown' };
+            pages.forEach(page => {
+                const reactions = page.reactions || {};
+                for (const [type, count] of Object.entries(reactions)) {
+                    const key = KEY_MAP[type] || type;
+                    totals[key] = (totals[key] || 0) + (parseInt(count) || 0);
+                }
+            });
+            gauge.data = totals;
         }
 
         function setGranularity(g) {
@@ -1089,80 +1107,6 @@ VIEWS['analytics'] = {
             el.querySelectorAll('.post-ov').forEach(r=>{r.addEventListener('mouseenter',e=>{const p=posts[+r.dataset.i];const pct=p.total>0?Math.round(p.spam/p.total*100):0;showTip(ttEl,e,`<strong>${escapeHtml(p.page_url)}</strong><br>Total: <strong>${p.total}</strong><br>✅ ${p.approved}&ensp;⏳ ${p.pending}&ensp;🚫 ${p.spam} (${pct}%)`);});r.addEventListener('mousemove',e=>moveTip(ttEl,e));r.addEventListener('mouseleave',()=>hideTip(ttEl));});
         }
 
-        function renderReactionBalance(data) {
-            const el = document.getElementById('reaction-balance-chart');
-            if (!el) return;
-            const pages = data.pages || [];
-            if (!data.total || data.total === 0) {
-                el.innerHTML = '<div class="chart-empty">No reactions yet</div>';
-                return;
-            }
-            // Aggregate totals across all pages
-            const totals = {};
-            pages.forEach(page => {
-                const reactions = page.reactions || {};
-                for (const [type, count] of Object.entries(reactions)) {
-                    totals[type] = (totals[type] || 0) + (parseInt(count) || 0);
-                }
-            });
-            const POSITIVE_TYPES = ['heart', 'thumbsup', 'pray', 'ok', 'fire', 'funny'];
-            const NEUTRAL_TYPES  = ['neutral'];
-            const NEGATIVE_TYPES = ['dislike', 'frown', 'rage'];
-            const pos = POSITIVE_TYPES.reduce((s, t) => s + (totals[t] || 0), 0);
-            const neu = NEUTRAL_TYPES.reduce((s, t) => s + (totals[t] || 0), 0);
-            const neg = NEGATIVE_TYPES.reduce((s, t) => s + (totals[t] || 0), 0);
-            const total = pos + neu + neg;
-            if (total === 0) {
-                el.innerHTML = '<div class="chart-empty">No reactions yet</div>';
-                return;
-            }
-            const posPct = pos / total * 100;
-            const negPct = neg / total * 100;
-            const neuPct = neu / total * 100;
-
-            // --- SVG: one continuous stacked bar ---
-            const W = 660, H = 72, barH = 22, barY = 30, pad = 8;
-            const barW = W - pad * 2;
-            // Segment widths (proportional, always adjacent → one connected bar)
-            const negW = total > 0 ? (neg / total) * barW : 0;
-            const neuW = total > 0 ? (neu / total) * barW : 0;
-            const posW = total > 0 ? (pos / total) * barW : 0;
-            // Build the bar: negative | neutral | positive, always drawn in order
-            // Use rx on the first and last visible segment for rounded ends
-            let bar = '';
-            let x = pad;
-            const segments = [
-                { w: negW, color: '#dc3545' },
-                { w: neuW, color: '#6c757d' },
-                { w: posW, color: '#28a745' },
-            ].filter(s => s.w > 0);
-            segments.forEach((s, i) => {
-                const isFirst = i === 0;
-                const isLast = i === segments.length - 1;
-                // Round the outer corners of end segments, flat joins in the middle
-                const r = (isFirst || isLast) ? 4 : 0;
-                bar += `<rect x="${x.toFixed(1)}" y="${barY}" width="${s.w.toFixed(1)}" height="${barH}" fill="${s.color}" rx="${r}"/>`;
-                x += s.w;
-            });
-
-            // --- Labels anchored to container edges (independent of bar widths) ---
-            const labelY = barY - 10;
-            const labels = `
-                <text x="${pad}" y="${labelY}" text-anchor="start" font-size="9.5" fill="#dc3545" font-weight="600">Negative ${negPct.toFixed(1)}%</text>
-                <text x="${W / 2}" y="${labelY}" text-anchor="middle" font-size="9.5" fill="#6c757d" font-weight="600">Neutral ${neuPct.toFixed(1)}%</text>
-                <text x="${W - pad}" y="${labelY}" text-anchor="end" font-size="9.5" fill="#28a745" font-weight="600">Positive ${posPct.toFixed(1)}%</text>
-            `;
-
-            el.innerHTML = `
-                <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;overflow:visible">${labels}${bar}</svg>
-                <div style="display:flex;justify-content:space-between;padding:0 2px;margin-top:0.15rem; flex-direction: column;">
-                    <span style="font-size:0.78rem;color:#dc3545;">😡Negative: ${fmt(neg)}</span>
-                    <span style="font-size:0.78rem;color:#6c757d;">😐Neutral: ${fmt(neu)}</span>
-                    <span style="font-size:0.78rem;color:#28a745;">☺️Positive: ${fmt(pos)}</span>
-                    <span style="font-size:0.78rem;color:#999;">📊Total: ${fmt(total)}</span>
-                </div>
-            `;
-        }
 
         function showTip(ttEl,e,html){if(!ttEl)return;ttEl.innerHTML=html;ttEl.style.display='block';moveTip(ttEl,e);}
         function moveTip(ttEl,e){if(!ttEl)return;const margin=14;let x=e.clientX+margin,y=e.clientY-margin;const tw=ttEl.offsetWidth,th=ttEl.offsetHeight;if(x+tw>window.innerWidth-8)x=e.clientX-tw-margin;if(y+th>window.innerHeight-8)y=e.clientY-th-margin;if(y<4)y=4;ttEl.style.left=x+'px';ttEl.style.top=y+'px';}

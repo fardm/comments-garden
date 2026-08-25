@@ -4,8 +4,8 @@ compatibility_date = "2024-03-20"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "comments-db6"
-database_id = "0862f415-ac43-43c8-aefa-819a064c1544"
+database_name = "comments-db7"
+database_id = "9f60be23-43ef-4774-a030-fe441077b457"
 
 [assets]
 directory = "./public"
