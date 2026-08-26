@@ -190,9 +190,8 @@ function renderPageUrl(pageUrl) {
             document.getElementById('admin-shell').style.display    = 'block';
 
             // Fetch configuration to get timezone and calendar settings globally
-            fetch(`${API_URL}/admin/config`, { credentials: 'include' })
-                .then(r => r.json())
-                .then(data => {
+            apiFetch(`${API_URL}/admin/config`)
+                .then(({ data }) => {
                     if (data && !data.error) {
                         window.AdminConfig = {
                             timezone: data.timezone || 'UTC',
@@ -427,23 +426,14 @@ VIEWS['comments'] = {
             _inflightReactions.add(key);
 
             try {
-                await AdminAuth.ensureCsrfToken();
-                const response = await fetch(`${API_URL}/admin/reactions/toggle`, {
+                const { ok, data } = await apiFetch(`${API_URL}/admin/reactions/toggle`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        comment_id: commentId,
-                        reaction_type: reactionType,
-                        csrf_token: AdminAuth.getCsrfToken()
-                    })
+                    body: { comment_id: commentId, reaction_type: reactionType },
                 });
-                if (!response.ok) {
-                    const err = await response.json().catch(() => ({}));
-                    console.error('Reaction toggle failed:', err.error || response.statusText);
+                if (!ok) {
+                    console.error('Reaction toggle failed:', data?.error || 'Unknown error');
                     return;
                 }
-                const data = await response.json();
 
                 // Close picker
                 const wrap = document.getElementById(`acc-reaction-picker-wrap-${commentId}`);
@@ -500,9 +490,9 @@ VIEWS['comments'] = {
 
         async function loadCounts() {
             try {
-                const r = await fetch(`${API_URL}/admin/comments/counts?_=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
-                if (r.ok) {
-                    counts = await r.json();
+                const { ok, data } = await apiFetch(`${API_URL}/admin/comments/counts?_=${Date.now()}`, { noStore: true });
+                if (ok) {
+                    counts = data;
                     updateTabCounts();
                 }
             } catch (e) { console.error('Failed to load counts', e); }
@@ -547,9 +537,8 @@ VIEWS['comments'] = {
             if (dateFilter !== 'all') qs.set('date', dateFilter);
 
             try {
-                const r = await fetch(`${API_URL}/admin/comments?${qs}`, { credentials: 'include', cache: 'no-store' });
-                const data = await r.json();
-                if (r.ok) {
+                const { ok, data } = await apiFetch(`${API_URL}/admin/comments?${qs}`, { noStore: true });
+                if (ok) {
                     totalCount = data.pagination.total;
                     lastLoadedComments = data.comments || [];
                     adminAvatarUrl = data.admin_avatar_url || '';
@@ -780,22 +769,18 @@ VIEWS['comments'] = {
             if (!commentEl) return;
             const originalHTML = commentEl.innerHTML;
             try {
-                await AdminAuth.ensureCsrfToken();
                 commentEl.style.opacity = '0.5';
                 commentEl.innerHTML = '<p style="text-align:center;padding:2rem;">Processing…</p>';
-                const r = await fetch(`${API_URL}/admin/comments/${id}/moderate`, {
+                const { ok, data } = await apiFetch(`${API_URL}/admin/comments/${id}/moderate`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
-                    credentials: 'include',
-                    body: JSON.stringify({ status, csrf_token: AdminAuth.getCsrfToken() }),
+                    body: { status },
                 });
-                const result = await r.json();
-                if (r.ok) {
+                if (ok) {
                     commentEl.innerHTML = `<p style="text-align:center;padding:2rem;color:green;">✓ ${status === 'approved' ? 'Approved' : 'Marked as spam'}!</p>`;
                     setTimeout(() => { loadComments(true); loadCounts(); }, 500);
                 } else {
                     commentEl.style.opacity = '1';
-                    commentEl.innerHTML = originalHTML + `<p class="error" style="margin-top:1rem;">Failed: ${result.error || 'Unknown error'}</p>`;
+                    commentEl.innerHTML = originalHTML + `<p class="error" style="margin-top:1rem;">Failed: ${data?.error || 'Unknown error'}</p>`;
                 }
             } catch (e) {
                 commentEl.style.opacity = '1';
@@ -806,38 +791,29 @@ VIEWS['comments'] = {
         async function deleteComment(id) {
             if (!confirm('Move this comment to Trash?')) return;
             try {
-                await AdminAuth.ensureCsrfToken();
-                const r = await fetch(`${API_URL}/admin/comments/${id}`, {
-                    method: 'DELETE', credentials: 'include',
-                });
-                if (r.ok) { loadComments(true); loadCounts(); }
-                else { alert(`Failed: ${(await r.json()).error || 'Unknown error'}`); }
+                const { ok, data } = await apiFetch(`${API_URL}/admin/comments/${id}`, { method: 'DELETE' });
+                if (ok) { loadComments(true); loadCounts(); }
+                else { alert(`Failed: ${data?.error || 'Unknown error'}`); }
             } catch (e) { alert('Network error while deleting comment'); }
         }
 
         async function restoreComment(id) {
             try {
-                await AdminAuth.ensureCsrfToken();
-                const r = await fetch(`${API_URL}/admin/comments/${id}/restore`, {
+                const { ok, data } = await apiFetch(`${API_URL}/admin/comments/${id}/restore`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ id, csrf_token: AdminAuth.getCsrfToken() }),
+                    body: { id },
                 });
-                if (r.ok) { loadComments(true); loadCounts(); }
-                else { alert(`Failed: ${(await r.json()).error || 'Unknown error'}`); }
+                if (ok) { loadComments(true); loadCounts(); }
+                else { alert(`Failed: ${data?.error || 'Unknown error'}`); }
             } catch (e) { alert('Network error while restoring comment'); }
         }
 
         async function permanentDelete(id) {
             if (!confirm('Permanently delete this comment? This cannot be undone.')) return;
             try {
-                await AdminAuth.ensureCsrfToken();
-                const r = await fetch(`${API_URL}/admin/comments/${id}/permanent`, {
-                    method: 'DELETE', credentials: 'include',
-                });
-                if (r.ok) { loadComments(true); loadCounts(); }
-                else { alert(`Failed: ${(await r.json()).error || 'Unknown error'}`); }
+                const { ok, data } = await apiFetch(`${API_URL}/admin/comments/${id}/permanent`, { method: 'DELETE' });
+                if (ok) { loadComments(true); loadCounts(); }
+                else { alert(`Failed: ${data?.error || 'Unknown error'}`); }
             } catch (e) { alert('Network error while deleting comment'); }
         }
 
@@ -852,11 +828,9 @@ VIEWS['comments'] = {
 
             if (!adminProfileCache) {
                 try {
-                    const response = await fetch(`${API_URL}/admin/settings`, { credentials: 'include' });
-                    if (response.ok) {
-                        const data = await response.json();
-
-                        adminProfileCache = data.settings || {};
+                    const { ok, data } = await apiFetch(`${API_URL}/admin/settings`);
+                    if (ok) {
+                        adminProfileCache = data?.settings || {};
                     }
                 } catch (e) { adminProfileCache = {}; }
             }
@@ -892,26 +866,22 @@ VIEWS['comments'] = {
             if (!replyingToPageUrl) { statusEl.textContent = 'Error: missing page URL'; statusEl.style.color = 'red'; return; }
 
             try {
-                await AdminAuth.ensureCsrfToken();
                 statusEl.textContent = 'Submitting…';
                 statusEl.style.color = 'var(--body-text,#888)';
-                const response = await fetch(`${API_URL}/admin/comments`, {
+                const { ok, data } = await apiFetch(`${API_URL}/admin/comments`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
+                    body: {
                         page_url: replyingToPageUrl, parent_id: commentId,
                         author_name: name, author_email: email, author_url: url || null,
-                        content, author_role: 'admin', csrf_token: AdminAuth.getCsrfToken()
-                    })
+                        content, author_role: 'admin',
+                    },
                 });
-                const result = await response.json();
-                if (response.ok) {
+                if (ok) {
                     statusEl.textContent = '✓ Reply posted successfully!';
                     statusEl.style.color = 'green';
                     setTimeout(() => { hideReplyForm(commentId); loadComments(true); }, 1000);
                 } else {
-                    statusEl.textContent = 'Failed: ' + (result.error || 'Unknown error');
+                    statusEl.textContent = 'Failed: ' + (data?.error || 'Unknown error');
                     statusEl.style.color = 'red';
                 }
             } catch (e) {
@@ -1009,12 +979,12 @@ VIEWS['analytics'] = {
         let analyticsData      = null;
         let currentGranularity = 'daily';
 
-        const [analyticsResp, reactionsResp] = await Promise.all([
-            fetch(`${API_URL}/admin/analytics?_=${Date.now()}`, { credentials: 'include', cache: 'no-store' }),
-            fetch(`${API_URL}/reactions/post/summary?_=${Date.now()}`, { credentials: 'include', cache: 'no-store' })
+        const [analyticsResult, reactionsResult] = await Promise.all([
+            apiFetch(`${API_URL}/admin/analytics?_=${Date.now()}`, { noStore: true }),
+            apiFetch(`${API_URL}/reactions/post/summary?_=${Date.now()}`, { noStore: true })
         ]);
-        if (analyticsResp.ok) { try { loadAnalytics(await analyticsResp.json()); } catch (e) { console.error('loadAnalytics failed:', e); } }
-        if (reactionsResp.ok) { try { loadSentimentGauge(await reactionsResp.json()); } catch (e) { console.error('loadSentimentGauge failed:', e); } }
+        if (analyticsResult.ok) { try { loadAnalytics(analyticsResult.data); } catch (e) { console.error('loadAnalytics failed:', e); } }
+        if (reactionsResult.ok) { try { loadSentimentGauge(reactionsResult.data); } catch (e) { console.error('loadSentimentGauge failed:', e); } }
 
         function loadAnalytics(data) {
             analyticsData = data;
@@ -1199,9 +1169,8 @@ VIEWS['post-reactions'] = {
 
         async function loadReactions() {
             try {
-                const r = await fetch(`${API_URL}/reactions/post/summary?_=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
-                const data = await r.json();
-                if (r.ok) { updateStats(data); }
+                const { ok, data } = await apiFetch(`${API_URL}/reactions/post/summary?_=${Date.now()}`, { noStore: true });
+                if (ok) { updateStats(data); }
             } catch (e) { console.error('Failed to load reactions summary', e); }
         }
 
@@ -1218,25 +1187,23 @@ VIEWS['post-reactions'] = {
 
         async function clearReactions(pageUrl) {
             if (!confirm(`Clear all post reactions for:\n${pageUrl}`)) return;
-            await AdminAuth.ensureCsrfToken();
             const msgEl = document.getElementById('reactions-message');
             try {
-                const r = await fetch(`${API_URL}/admin/reactions/delete-by-url?url=${encodeURIComponent(pageUrl)}&csrf_token=${encodeURIComponent(AdminAuth.getCsrfToken())}`, { method: 'DELETE', credentials: 'include' });
-                const result = await r.json();
-                if (r.ok) { msgEl.innerHTML = '<div class="message success">Reactions cleared.</div>'; setTimeout(() => { if (msgEl) msgEl.innerHTML = ''; }, 3000); loadReactions(); }
-                else { msgEl.innerHTML = `<div class="message error">${result.error || 'Failed to clear'}</div>`; }
+                await AdminAuth.ensureCsrfToken();
+                const { ok, data } = await apiFetch(`${API_URL}/admin/reactions/delete-by-url?url=${encodeURIComponent(pageUrl)}&csrf_token=${encodeURIComponent(AdminAuth.getCsrfToken())}`, { method: 'DELETE' });
+                if (ok) { msgEl.innerHTML = '<div class="message success">Reactions cleared.</div>'; setTimeout(() => { if (msgEl) msgEl.innerHTML = ''; }, 3000); loadReactions(); }
+                else { msgEl.innerHTML = `<div class="message error">${data?.error || 'Failed to clear'}</div>`; }
             } catch (e) { msgEl.innerHTML = '<div class="message error">Network error</div>'; }
         }
 
         async function clearReaction(reactionId, pageUrl, reactionType) {
             if (!confirm(`Delete this ${reactionType} reaction?`)) return;
-            await AdminAuth.ensureCsrfToken();
             const msgEl = document.getElementById('latest-message');
             try {
-                const r = await fetch(`${API_URL}/admin/reactions/${encodeURIComponent(reactionId)}?csrf_token=${encodeURIComponent(AdminAuth.getCsrfToken())}`, { method: 'DELETE', credentials: 'include' });
-                const result = await r.json();
-                if (r.ok) { msgEl.innerHTML = '<div class="message success">Reaction deleted.</div>'; setTimeout(() => { if (msgEl) msgEl.innerHTML = ''; }, 3000); loadLatestReactions(); loadReactions(); }
-                else { msgEl.innerHTML = `<div class="message error">${result.error || 'Failed to delete'}</div>`; }
+                await AdminAuth.ensureCsrfToken();
+                const { ok, data } = await apiFetch(`${API_URL}/admin/reactions/${encodeURIComponent(reactionId)}?csrf_token=${encodeURIComponent(AdminAuth.getCsrfToken())}`, { method: 'DELETE' });
+                if (ok) { msgEl.innerHTML = '<div class="message success">Reaction deleted.</div>'; setTimeout(() => { if (msgEl) msgEl.innerHTML = ''; }, 3000); loadLatestReactions(); loadReactions(); }
+                else { msgEl.innerHTML = `<div class="message error">${data?.error || 'Failed to delete'}</div>`; }
             } catch (e) { msgEl.innerHTML = '<div class="message error">Network error</div>'; }
         }
 
@@ -1249,9 +1216,8 @@ VIEWS['post-reactions'] = {
             const container = document.getElementById('latest-reactions-container');
             if (!container) return;
             try {
-                const r = await fetch(`${API_URL}/admin/reactions?limit=${LATEST_PAGE_SIZE}&offset=${latestOffset}&_=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
-                const data = await r.json();
-                if (r.ok) {
+                const { ok, data } = await apiFetch(`${API_URL}/admin/reactions?limit=${LATEST_PAGE_SIZE}&offset=${latestOffset}&_=${Date.now()}`, { noStore: true });
+                if (ok) {
                     latestTotal = data.total || 0;
                     let reactions = data.reactions || [];
                     if (activeFilter !== 'all') {
@@ -1448,9 +1414,8 @@ VIEWS['settings-general'] = {
         async function loadSettings() {
             try {
                 // Load settings (moderation, sort, admin profile)
-                const sr = await fetch(`${API_URL}/admin/settings`, { credentials: 'include' });
-                const sd = await sr.json();
-                if (sr.ok && sd.settings) {
+                const { ok: sOk, data: sd } = await apiFetch(`${API_URL}/admin/settings`);
+                if (sOk && sd?.settings) {
                     const s = sd.settings;
                     document.getElementById('setting-require-moderation').checked = (s.require_moderation === 'true');
                     document.getElementById('setting-comment-sort-order').value = s.comment_sort_order === 'desc' ? 'desc' : 'asc';
@@ -1459,9 +1424,8 @@ VIEWS['settings-general'] = {
                     document.getElementById('setting-admin-url').value = s.admin_url || '';
                 }
                 // Load system config (timezone, calendar, origins, language)
-                const cr = await fetch(`${API_URL}/admin/config`, { credentials: 'include' });
-                const cd = await cr.json();
-                if (cr.ok) {
+                const { ok: cOk, data: cd } = await apiFetch(`${API_URL}/admin/config`);
+                if (cOk) {
                     document.getElementById('setting-timezone').value = cd.timezone || 'UTC';
                     document.getElementById('setting-calendar').value = cd.app_calendar || 'gregorian';
                     document.getElementById('setting-language').value = cd.app_language || 'en';
@@ -1478,8 +1442,6 @@ VIEWS['settings-general'] = {
 
         async function saveSettings() {
             try {
-                await AdminAuth.ensureCsrfToken();
-
                 // Read all values
                 const requireModeration = document.getElementById('setting-require-moderation').checked ? 'true' : 'false';
                 const commentSortOrder = document.getElementById('setting-comment-sort-order').value;
@@ -1492,36 +1454,28 @@ VIEWS['settings-general'] = {
 
 
                 // Save settings (requires get_settings to preserve existing keys)
-                const sr = await fetch(`${API_URL}/admin/settings`, { credentials: 'include' });
-                const currentSettings = (await sr.json()).settings || {};
+                const { data: currentData } = await apiFetch(`${API_URL}/admin/settings`);
+                const currentSettings = currentData?.settings || {};
 
-                const settingsPayload = {
-                    csrf_token: AdminAuth.getCsrfToken(),
-                    require_moderation: requireModeration,
-                    comment_sort_order: commentSortOrder,
-                    admin_name: adminName,
-                    admin_email: adminEmail,
-                    admin_url: adminUrl,
-                    // Preserve existing settings not shown on this page
-                    telegram_enabled: currentSettings.telegram_enabled || 'false',
-                    telegram_chat_id: currentSettings.telegram_chat_id || '',
-                    max_comment_length: currentSettings.max_comment_length || '5000',
-                    allow_guest_comments: currentSettings.allow_guest_comments || 'true'
-                };
-
-                const settingsReq = fetch(`${API_URL}/admin/settings`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include', body: JSON.stringify(settingsPayload)
+                const settingsReq = apiFetch(`${API_URL}/admin/settings`, {
+                    method: 'POST',
+                    body: {
+                        require_moderation: requireModeration,
+                        comment_sort_order: commentSortOrder,
+                        admin_name: adminName,
+                        admin_email: adminEmail,
+                        admin_url: adminUrl,
+                        // Preserve existing settings not shown on this page
+                        telegram_enabled: currentSettings.telegram_enabled || 'false',
+                        telegram_chat_id: currentSettings.telegram_chat_id || '',
+                        max_comment_length: currentSettings.max_comment_length || '5000',
+                        allow_guest_comments: currentSettings.allow_guest_comments || 'true'
+                    },
                 });
 
-                const configReq = fetch(`${API_URL}/admin/config`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        csrf_token: AdminAuth.getCsrfToken(),
-
-                        timezone, app_language: language, app_calendar: calendar
-                    })
+                const configReq = apiFetch(`${API_URL}/admin/config`, {
+                    method: 'POST',
+                    body: { timezone, app_language: language, app_calendar: calendar },
                 });
 
                 const [settingsRes, configRes] = await Promise.all([settingsReq, configReq]);
@@ -1529,7 +1483,6 @@ VIEWS['settings-general'] = {
                 if (settingsRes.ok && configRes.ok) {
                     showToast('\u2713 Settings saved', 'success');
                 } else {
-                    const errData = await configRes.json().catch(() => ({}));
                     showToast('\u26a0 Failed to save settings', 'error');
                 }
             } catch (e) {
@@ -1601,12 +1554,11 @@ VIEWS['settings-reactions'] = {
             const listEl = document.getElementById('reactions-settings-list');
             if (!listEl) return;
             try {
-                const r = await fetch(`${API_URL}/admin/settings`, { credentials: 'include' });
-                const d = await r.json();
+                const { ok, data } = await apiFetch(`${API_URL}/admin/settings`);
                 let enabled = ALL_REACTIONS.map(r => r.type);
-                if (d.settings && d.settings.enabled_reactions) {
+                if (ok && data?.settings?.enabled_reactions) {
                     try {
-                        const parsed = JSON.parse(d.settings.enabled_reactions);
+                        const parsed = JSON.parse(data.settings.enabled_reactions);
                         if (Array.isArray(parsed) && parsed.length > 0) enabled = parsed;
                     } catch {}
                 }
@@ -1653,18 +1605,11 @@ VIEWS['settings-reactions'] = {
                 .map(r => r.type);
 
             try {
-                await AdminAuth.ensureCsrfToken();
-                const r = await fetch(`${API_URL}/admin/settings`, {
+                const { ok, data } = await apiFetch(`${API_URL}/admin/settings`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        csrf_token: AdminAuth.getCsrfToken(),
-                        enabled_reactions: JSON.stringify(currentEnabled)
-                    })
+                    body: { enabled_reactions: JSON.stringify(currentEnabled) },
                 });
-                const d = await r.json();
-                if (!r.ok) throw new Error(d.error || 'Save failed');
+                if (!ok) throw new Error(data?.error || 'Save failed');
             } catch (e) {
                 // Revert toggle
                 cb.checked = !previousState;
@@ -1753,9 +1698,8 @@ VIEWS['settings-database'] = {
             const area = document.getElementById('db-stats-area');
             if (!area) return;
             try {
-                const r = await fetch(`${API_URL}/admin/db/stats`, { credentials: 'include' });
-                const d = await r.json();
-                if (!r.ok) { area.innerHTML = `<div class="message error">${d.error}</div>`; return; }
+                const { ok, data: d } = await apiFetch(`${API_URL}/admin/db/stats`);
+                if (!ok) { area.innerHTML = `<div class="message error">${d?.error}</div>`; return; }
                 const t = d.tables, cs = d.comment_statuses || {};
                 area.innerHTML = `<div class="db-stats-grid">
                     <div class="db-stat-item"><div class="num">${t.comments ?? 0}</div><div class="lbl">Comments</div></div>
@@ -1771,26 +1715,22 @@ VIEWS['settings-database'] = {
 
         async function vacuumDb() {
             const msgEl = document.getElementById('db-message');
-            await AdminAuth.ensureCsrfToken();
             msgEl.innerHTML = '<div class="message info">Running VACUUM…</div>';
             try {
-                const r = await fetch(`${API_URL}/admin/db/vacuum`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({csrf_token:AdminAuth.getCsrfToken()}) });
-                const d = await r.json();
-                if (r.ok) { const saved=d.saved_bytes>0?` Freed ${formatBytes(d.saved_bytes)}.`:' No space reclaimed (already optimal).'; msgEl.innerHTML=`<div class="message success">Database optimized.${saved} New size: ${formatBytes(d.size_after)}.</div>`; loadDbStats(); }
-                else { msgEl.innerHTML = `<div class="message error">${d.error}</div>`; }
+                const { ok, data: d } = await apiFetch(`${API_URL}/admin/db/vacuum`, { method: 'POST', body: {} });
+                if (ok) { const saved=d?.saved_bytes>0?` Freed ${formatBytes(d.saved_bytes)}.`:' No space reclaimed (already optimal).'; msgEl.innerHTML=`<div class="message success">Database optimized.${saved} New size: ${formatBytes(d?.size_after)}.</div>`; loadDbStats(); }
+                else { msgEl.innerHTML = `<div class="message error">${d?.error}</div>`; }
             } catch(e) { msgEl.innerHTML = '<div class="message error">Network error</div>'; }
         }
 
         async function deleteSpam() {
             const msgEl = document.getElementById('db-message');
             if(!confirm('Delete ALL comments marked as spam? This cannot be undone.')) return;
-            await AdminAuth.ensureCsrfToken();
             msgEl.innerHTML = '<div class="message info">Purging spam…</div>';
             try {
-                const r = await fetch(`${API_URL}/admin/db/delete-spam`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({csrf_token:AdminAuth.getCsrfToken()}) });
-                const d = await r.json();
-                if (r.ok) { msgEl.innerHTML = `<div class="message success">Deleted ${d.deleted_count} spam comment(s).</div>`; loadDbStats(); }
-                else { msgEl.innerHTML = `<div class="message error">${d.error}</div>`; }
+                const { ok, data: d } = await apiFetch(`${API_URL}/admin/db/delete-spam`, { method: 'POST', body: {} });
+                if (ok) { msgEl.innerHTML = `<div class="message success">Deleted ${d?.deleted_count} spam comment(s).</div>`; loadDbStats(); }
+                else { msgEl.innerHTML = `<div class="message error">${d?.error}</div>`; }
             } catch(e) { msgEl.innerHTML = '<div class="message error">Network error</div>'; }
         }
 
@@ -1804,13 +1744,12 @@ VIEWS['settings-database'] = {
             document.getElementById('dd-delete-btn').disabled = true;
             syncDeleteDataSelectAll();
 
-            fetch(`${API_URL}/admin/db/stats`, { credentials: 'include' })
-                .then(r => r.json())
-                .then(d => {
-                    if (d.tables) {
-                        const c = document.getElementById('dd-count-comments'); if (c) c.textContent = `(${d.tables.comments ?? 0})`;
-                        const pr = document.getElementById('dd-count-post-reactions'); if (pr) pr.textContent = `(${d.tables.post_reactions ?? 0})`;
-                        const cr = document.getElementById('dd-count-comment-reactions'); if (cr) cr.textContent = `(${d.tables.comment_reactions ?? 0})`;
+            apiFetch(`${API_URL}/admin/db/stats`)
+                .then(({ data }) => {
+                    if (data?.tables) {
+                        const c = document.getElementById('dd-count-comments'); if (c) c.textContent = `(${data.tables.comments ?? 0})`;
+                        const pr = document.getElementById('dd-count-post-reactions'); if (pr) pr.textContent = `(${data.tables.post_reactions ?? 0})`;
+                        const cr = document.getElementById('dd-count-comment-reactions'); if (cr) cr.textContent = `(${data.tables.comment_reactions ?? 0})`;
                     }
                 }).catch(()=>{});
         }
@@ -1859,7 +1798,6 @@ VIEWS['settings-database'] = {
             if (!msgEl || !btn) return;
 
             const req = {
-                csrf_token: AdminAuth.getCsrfToken(),
                 delete_comments: document.getElementById('dd-comments').checked,
                 delete_post_reactions: document.getElementById('dd-post-reactions').checked,
                 delete_comment_reactions: document.getElementById('dd-comment-reactions').checked,
@@ -1869,21 +1807,18 @@ VIEWS['settings-database'] = {
             msgEl.innerHTML = '<div class="message info">Deleting data...</div>';
 
             try {
-                await AdminAuth.ensureCsrfToken();
-                req.csrf_token = AdminAuth.getCsrfToken();
-                const r = await fetch(`${API_URL}/admin/db/delete-data`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(req) });
-                const d = await r.json();
+                const { ok, data: d } = await apiFetch(`${API_URL}/admin/db/delete-data`, { method: 'POST', body: req });
 
-                if (r.ok) {
+                if (ok) {
                     const parts = [];
-                    if (d.deleted?.comments !== undefined) parts.push(`${d.deleted.comments} comment(s)`);
-                    if (d.deleted?.post_reactions !== undefined) parts.push(`${d.deleted.post_reactions} post reaction(s)`);
-                    if (d.deleted?.comment_reactions !== undefined) parts.push(`${d.deleted.comment_reactions} comment reaction(s)`);
+                    if (d?.deleted?.comments !== undefined) parts.push(`${d.deleted.comments} comment(s)`);
+                    if (d?.deleted?.post_reactions !== undefined) parts.push(`${d.deleted.post_reactions} post reaction(s)`);
+                    if (d?.deleted?.comment_reactions !== undefined) parts.push(`${d.deleted.comment_reactions} comment reaction(s)`);
 
                     const resStr = parts.length > 0 ? parts.join(', ') : 'no data';
                     msgEl.innerHTML = `<div class="message success">Successfully deleted ${resStr}. Vacuuming database...</div>`;
 
-                    await fetch(`${API_URL}/admin/db/vacuum`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({csrf_token:AdminAuth.getCsrfToken()}) });
+                    await apiFetch(`${API_URL}/admin/db/vacuum`, { method: 'POST', body: {} });
 
                     setTimeout(() => {
                         closeDeleteDataModal();
@@ -1892,7 +1827,7 @@ VIEWS['settings-database'] = {
                         if (pm) { pm.innerHTML = `<div class="message success">Data deletion complete (${resStr}).</div>`; setTimeout(()=>pm.innerHTML='', 5000); }
                     }, 1500);
                 } else {
-                    msgEl.innerHTML = `<div class="message error">${d.error || 'Deletion failed'}</div>`;
+                    msgEl.innerHTML = `<div class="message error">${d?.error || 'Deletion failed'}</div>`;
                     btn.disabled = false;
                 }
             } catch (e) {
@@ -1956,11 +1891,10 @@ VIEWS['settings-notifications'] = {
     init({ hoistToWindow }) {
         async function loadTelegramStatus() {
             try {
-                const r = await fetch(`${API_URL}/admin/telegram/status`, { credentials: 'include' });
-                if (r.ok) {
-                    const d = await r.json();
+                const { ok, data } = await apiFetch(`${API_URL}/admin/telegram/status`);
+                if (ok) {
                     const cb = document.getElementById('setting-telegram-enabled');
-                    if (cb) cb.checked = d.telegram_enabled;
+                    if (cb) cb.checked = data?.telegram_enabled;
                 }
             } catch (e) { console.error('Telegram status load failed', e); }
         }
@@ -1971,21 +1905,18 @@ VIEWS['settings-notifications'] = {
             if (!cb) return;
             const enabled = cb.checked;
             try {
-                await AdminAuth.ensureCsrfToken();
-                const r = await fetch(`${API_URL}/admin/telegram/toggle`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ telegram_enabled: enabled, csrf_token: AdminAuth.getCsrfToken() }),
+                const { ok, data } = await apiFetch(`${API_URL}/admin/telegram/toggle`, {
+                    method: 'POST',
+                    body: { telegram_enabled: enabled },
                 });
-                const d = await r.json();
-                if (r.ok) {
-                    cb.checked = d.telegram_enabled;
+                if (ok) {
+                    cb.checked = data?.telegram_enabled;
                     if (msgEl) {
-                        msgEl.innerHTML = `<div class="message success">Telegram notifications ${d.telegram_enabled ? 'enabled' : 'disabled'}.</div>`;
+                        msgEl.innerHTML = `<div class="message success">Telegram notifications ${data?.telegram_enabled ? 'enabled' : 'disabled'}.</div>`;
                         setTimeout(() => { msgEl.innerHTML = ''; }, 2500);
                     }
                 } else {
-                    if (msgEl) msgEl.innerHTML = `<div class="message error">${d.error || 'Failed to update'}</div>`;
+                    if (msgEl) msgEl.innerHTML = `<div class="message error">${data?.error || 'Failed to update'}</div>`;
                 }
             } catch (e) {
                 if (msgEl) msgEl.innerHTML = '<div class="message error">Network error</div>';
@@ -2099,31 +2030,32 @@ VIEWS['settings-import-export'] = {
             if (!importFileContent) return;
             const msgEl = document.getElementById('import-message');
             const prevEl = document.getElementById('import-preview');
-            await AdminAuth.ensureCsrfToken();
             if (msgEl) msgEl.innerHTML = '<div class="message info">Analyzing file…</div>';
             if (prevEl) prevEl.style.display = 'none';
             try {
-                const r = await fetch(`${API_URL}/admin/import-export/import?preview=1`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ csrf_token: AdminAuth.getCsrfToken(), content: importFileContent }) });
-                const d = await r.json();
-                if (r.ok) {
+                const { ok, data } = await apiFetch(`${API_URL}/admin/import-export/import?preview=1`, {
+                    method: 'POST',
+                    body: { content: importFileContent },
+                });
+                if (ok) {
                     if (msgEl) msgEl.innerHTML = '';
                     if (prevEl) {
                         prevEl.style.display = 'block';
-                        const formatName = (d.format === 'json') ? 'Full Backup' : (d.format === 'legacy_json') ? 'Legacy Comments' : 'Comments Export';
+                        const formatName = (data?.format === 'json') ? 'Full Backup' : (data?.format === 'legacy_json') ? 'Legacy Comments' : 'Comments Export';
                         prevEl.innerHTML = `
                             <strong>Preview (${formatName})</strong>
                             <table>
                                 <tbody>
-                                    <tr><td>Comments</td><td>${d.comments ?? 0}</td></tr>
-                                    <tr><td>Comment reactions</td><td>${d.comment_reactions ?? 0}</td></tr>
-                                    <tr><td>Post reactions</td><td>${d.post_reactions ?? 0}</td></tr>
+                                    <tr><td>Comments</td><td>${data?.comments ?? 0}</td></tr>
+                                    <tr><td>Comment reactions</td><td>${data?.comment_reactions ?? 0}</td></tr>
+                                    <tr><td>Post reactions</td><td>${data?.post_reactions ?? 0}</td></tr>
                                 </tbody>
                             </table>
                             <div style="margin-top:.75rem;font-size:.85rem;color:#666;">Note: Duplicate records will be automatically skipped during import.</div>
                         `;
                     }
                     importPreviewDone = true;
-                } else { if (msgEl) msgEl.innerHTML = `<div class="message error">${d.error}</div>`; }
+                } else { if (msgEl) msgEl.innerHTML = `<div class="message error">${data?.error}</div>`; }
             } catch (e) { if (msgEl) msgEl.innerHTML = '<div class="message error">Network error analyzing file</div>'; }
         }
 
@@ -2135,20 +2067,21 @@ VIEWS['settings-import-export'] = {
             const msgEl = document.getElementById('import-message');
             const statusEl = document.getElementById('import-status');
             const bimp = document.getElementById('btn-import');
-            await AdminAuth.ensureCsrfToken();
             if(bimp) bimp.disabled = true;
             if(msgEl) msgEl.innerHTML = '';
             if(statusEl) statusEl.textContent = 'Importing... this may take a moment for large files.';
             try {
-                const r = await fetch(`${API_URL}/admin/import-export/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ csrf_token: AdminAuth.getCsrfToken(), content: importFileContent }) });
-                const d = await r.json();
+                const { ok, data } = await apiFetch(`${API_URL}/admin/import-export/import`, {
+                    method: 'POST',
+                    body: { content: importFileContent },
+                });
                 if(statusEl) statusEl.textContent = '';
-                if(r.ok) {
+                if(ok) {
                     const parts = [];
-                    if((d.imported_comments ?? 0) > 0) parts.push(`${d.imported_comments} comment${d.imported_comments !== 1 ? 's' : ''}`);
-                    if((d.imported_comment_reactions ?? 0) > 0) parts.push(`${d.imported_comment_reactions} comment reaction${d.imported_comment_reactions !== 1 ? 's' : ''}`);
-                    if((d.imported_post_reactions ?? 0) > 0) parts.push(`${d.imported_post_reactions} post reaction${d.imported_post_reactions !== 1 ? 's' : ''}`);
-                    const skipped = (d.skipped_comments ?? 0) + (d.skipped_comment_reactions ?? 0) + (d.skipped_post_reactions ?? 0);
+                    if((data?.imported_comments ?? 0) > 0) parts.push(`${data.imported_comments} comment${data.imported_comments !== 1 ? 's' : ''}`);
+                    if((data?.imported_comment_reactions ?? 0) > 0) parts.push(`${data.imported_comment_reactions} comment reaction${data.imported_comment_reactions !== 1 ? 's' : ''}`);
+                    if((data?.imported_post_reactions ?? 0) > 0) parts.push(`${data.imported_post_reactions} post reaction${data.imported_post_reactions !== 1 ? 's' : ''}`);
+                    const skipped = (data?.skipped_comments ?? 0) + (data?.skipped_comment_reactions ?? 0) + (data?.skipped_post_reactions ?? 0);
                     const dupNote = skipped > 0 ? ` (${skipped} duplicate${skipped !== 1 ? 's' : ''} skipped)` : '';
                     if(msgEl) msgEl.innerHTML = `<div class="message success">Imported ${parts.length ? parts.join(', ') : 'no new items'}${dupNote}.</div>`;
                     const iprev = document.getElementById('import-preview'); if(iprev) iprev.style.display = 'none';
@@ -2156,7 +2089,7 @@ VIEWS['settings-import-export'] = {
                     const bprev = document.getElementById('btn-preview'); if(bprev) bprev.disabled = true;
                     const flabel = document.getElementById('file-selected-label'); if(flabel) flabel.style.display = 'none';
                 } else {
-                    if(msgEl) msgEl.innerHTML = `<div class="message error">${d.error}</div>`;
+                    if(msgEl) msgEl.innerHTML = `<div class="message error">${data?.error}</div>`;
                     if(bimp) bimp.disabled = false;
                 }
             } catch(e) {

@@ -31,6 +31,49 @@
 
 const API_URL = window.COMMENTS_CONFIG?.apiUrl || '/api';
 
+/**
+ * Centralized fetch wrapper for admin API calls.
+ *
+ * Automatically handles:
+ *   - CSRF token injection for mutating requests (POST/PUT/DELETE)
+ *   - credentials: 'include' on every request
+ *   - JSON body serialization and response parsing
+ *
+ * @param {string} url        - The endpoint URL
+ * @param {Object} [opts]     - Options
+ * @param {string} [opts.method='GET']  - HTTP method
+ * @param {Object} [opts.body]          - Request body (auto-serialized to JSON; CSRF token injected for mutating requests)
+ * @param {boolean} [opts.noStore=false] - If true, sets cache: 'no-store'
+ * @returns {Promise<{ok: boolean, status: number, data: any}>} Parsed response
+ */
+async function apiFetch(url, { method = 'GET', body, noStore = false } = {}) {
+    const isMutating = method !== 'GET' && method !== 'HEAD';
+    const fetchOpts = { method, credentials: 'include' };
+
+    if (noStore) fetchOpts.cache = 'no-store';
+
+    // For mutating requests, ensure CSRF cookie is set and inject token into body
+    let requestBody = body;
+    if (isMutating) {
+        await AdminAuth.ensureCsrfToken();
+        if (requestBody && typeof requestBody === 'object') {
+            requestBody = { ...requestBody, csrf_token: AdminAuth.getCsrfToken() };
+        }
+    }
+
+    if (requestBody !== undefined && requestBody !== null) {
+        fetchOpts.headers = { 'Content-Type': 'application/json' };
+        fetchOpts.body = JSON.stringify(requestBody);
+    }
+
+    const response = await fetch(url, fetchOpts);
+
+    let data = null;
+    try { data = await response.json(); } catch (_) { /* non-JSON response */ }
+
+    return { ok: response.ok, status: response.status, data };
+}
+
 // ── AdminAuth ─────────────────────────────────────────────────────────────────
 
 const AdminAuth = (() => {
