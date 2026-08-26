@@ -18,6 +18,8 @@ export class ImportExportService {
   // ── Export (Streaming) ───────────────────────────────────────────
 
   private static BATCH_SIZE = 500
+  /** D1 batch() limit: max statements per batch call. */
+  private static D1_BATCH_SIZE = 50
 
   /**
    * Paginate over a table using cursor-based pagination (WHERE id > lastId).
@@ -215,14 +217,61 @@ export class ImportExportService {
     return null // valid
   }
 
+  // ── Internal: Snapshot / Rollback Helpers ────────────────────────
+
+  /**
+   * Capture the current max ID for every mutable table so we can
+   * roll back any rows inserted after this point.
+   */
+  private async getTableMaxIds(): Promise<{
+    comments: number
+    post_reactions: number
+    comment_reactions: number
+  }> {
+    const [{ results: c }, { results: pr }, { results: cr }] = await Promise.all([
+      this.db.prepare('SELECT COALESCE(MAX(id), 0) AS max_id FROM comments').all(),
+      this.db.prepare('SELECT COALESCE(MAX(id), 0) AS max_id FROM post_reactions').all(),
+      this.db.prepare('SELECT COALESCE(MAX(id), 0) AS max_id FROM comment_reactions').all(),
+    ])
+    return {
+      comments: (c[0]?.max_id as number) ?? 0,
+      post_reactions: (pr[0]?.max_id as number) ?? 0,
+      comment_reactions: (cr[0]?.max_id as number) ?? 0,
+    }
+  }
+
+  /**
+   * Best-effort cleanup: delete every row whose ID exceeds the snapshot.
+   * Because D1 has no cross-batch transactions this is the closest we
+   * can get to a rollback.
+   */
+  private async rollbackFromSnapshot(
+    snapshot: { comments: number; post_reactions: number; comment_reactions: number },
+  ): Promise<void> {
+    try {
+      await this.db.batch([
+        this.db.prepare('DELETE FROM comment_reactions WHERE id > ?').bind(snapshot.comment_reactions),
+        this.db.prepare('DELETE FROM post_reactions WHERE id > ?').bind(snapshot.post_reactions),
+        this.db.prepare('DELETE FROM comments WHERE id > ?').bind(snapshot.comments),
+      ])
+    } catch (rollbackErr) {
+      console.error('[Import] CRITICAL: Rollback failed — import data may be partially committed:', rollbackErr)
+    }
+  }
+
   // ── Internal: Full Import ────────────────────────────────────────
 
   private async importFullPayload(data: ExportPayload): Promise<Record<string, any>> {
-    // Step 1: Check which comments already exist (by page_url + author_name + content fingerprint)
-    const existingFingerprints = await this.getExistingCommentFingerprints()
+    // ── Phase 1: Read-only dedup lookups (safe, no mutations) ─────
+    const [existingFingerprints, existingPR, existingCR] = await Promise.all([
+      this.getExistingCommentFingerprints(),
+      this.getExistingPostReactionKeys(),
+      this.getExistingCommentReactionKeys(),
+    ])
+
+    // ── Phase 2: Filter out duplicate comments ─────────────────────
     const newComments: any[] = []
     let skipped_comments = 0
-
     for (const c of data.comments) {
       const fp = this.commentFingerprint(c.page_url, c.author_name, c.content)
       if (existingFingerprints.has(fp)) {
@@ -232,151 +281,155 @@ export class ImportExportService {
       newComments.push(c)
     }
 
-    // Step 2: Insert new comments in a batch, building an ID map (export_id → new_db_id)
+    // ── Phase 3: Snapshot table state for rollback ─────────────────
+    const snapshot = await this.getTableMaxIds()
+
+    // ── Phase 4: Execute mutations (rolled back on failure) ────────
     const idMap = new Map<number, number>()
     let imported_comments = 0
-
-    // First pass: insert all comments without parent_id (to get IDs)
-    const commentStmts: D1PreparedStatement[] = []
-    const commentMeta: any[] = [] // track export IDs in parallel
-    for (const c of newComments) {
-      const createdAt = c.created_at || new Date().toISOString()
-      const updatedAt = c.updated_at || createdAt
-
-      const authorHash = c.author_email ? await getGravatarHash(c.author_email) : null
-      commentStmts.push(
-        this.db.prepare(`
-          INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, author_role, author_hash)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          c.page_url,
-          null, // defer parent linking
-          c.author_name,
-          c.author_email || null,
-          c.author_url || null,
-          c.content,
-          createdAt,
-          updatedAt,
-          c.status || 'approved',
-          c.ip_address || null,
-          c.author_role || 'user',
-          authorHash,
-        )
-      )
-      commentMeta.push(c)
-    }
-
-    // Execute inserts in batches of 50 (D1 batch limit)
-    for (let i = 0; i < commentStmts.length; i += 50) {
-      const batch = commentStmts.slice(i, i + 50)
-      const batchMeta = commentMeta.slice(i, i + 50)
-      const results = await this.db.batch(batch)
-      for (let j = 0; j < results.length; j++) {
-        const meta = (results[j] as any).meta
-        const newId = meta.last_row_id as number
-        const exportId = batchMeta[j].id
-        if (exportId) idMap.set(exportId, newId)
-        imported_comments++
-      }
-    }
-
-    // Also map existing comments (they keep their original IDs)
-    for (const c of data.comments) {
-      const fp = this.commentFingerprint(c.page_url, c.author_name, c.content)
-      if (existingFingerprints.has(fp)) {
-        idMap.set(c.id, existingFingerprints.get(fp)!)
-      }
-    }
-
-    // Step 3: Link parent_ids using the ID map
-    const parentStmts: D1PreparedStatement[] = []
-    for (let i = 0; i < newComments.length; i++) {
-      const c = newComments[i]
-      if (c.parent_id && idMap.has(c.parent_id)) {
-        const newId = idMap.get(newComments[i].id)!
-        const mappedParentId = idMap.get(c.parent_id)
-        if (mappedParentId) {
-          parentStmts.push(
-            this.db.prepare('UPDATE comments SET parent_id = ? WHERE id = ?')
-              .bind(mappedParentId, newId)
-          )
-        }
-      }
-    }
-    if (parentStmts.length > 0) {
-      await this.db.batch(parentStmts)
-    }
-
-    // Step 4: Import post reactions (deduplicate by page_url + ip_address + reaction_type)
     let imported_post_reactions = 0
     let skipped_post_reactions = 0
-    const postReactionStmts: D1PreparedStatement[] = []
-
-    if (data.post_reactions) {
-      const existingPR = await this.getExistingPostReactionKeys()
-      for (const r of data.post_reactions) {
-        const key = `${r.page_url}|${r.ip_address}|${r.reaction_type}`
-        if (existingPR.has(key)) {
-          skipped_post_reactions++
-          continue
-        }
-        postReactionStmts.push(
-          this.db.prepare(`
-            INSERT INTO post_reactions (page_url, ip_address, reaction_type, created_at)
-            VALUES (?, ?, ?, ?)
-          `).bind(
-            r.page_url,
-            r.ip_address,
-            r.reaction_type || 'heart',
-            r.created_at || new Date().toISOString(),
-          )
-        )
-      }
-    }
-
-    for (let i = 0; i < postReactionStmts.length; i += 50) {
-      const batch = postReactionStmts.slice(i, i + 50)
-      await this.db.batch(batch)
-      imported_post_reactions += batch.length
-    }
-
-    // Step 5: Import comment reactions (deduplicate by comment_id + ip_address + reaction_type)
     let imported_comment_reactions = 0
     let skipped_comment_reactions = 0
-    const commentReactionStmts: D1PreparedStatement[] = []
 
-    if (data.comment_reactions) {
-      const existingCR = await this.getExistingCommentReactionKeys()
-      for (const r of data.comment_reactions) {
-        const mappedCommentId = idMap.get(r.comment_id)
-        if (!mappedCommentId) {
-          skipped_comment_reactions++
-          continue
-        }
-        const key = `${mappedCommentId}|${r.ip_address}|${r.reaction_type}|${r.author_role || 'user'}`
-        if (existingCR.has(key)) {
-          skipped_comment_reactions++
-          continue
-        }
-        commentReactionStmts.push(
+    try {
+      // 4a: Insert new comments (parent_id deferred until IDs are known)
+      const commentStmts: D1PreparedStatement[] = []
+      const commentMeta: any[] = []
+      for (const c of newComments) {
+        const createdAt = c.created_at || new Date().toISOString()
+        const updatedAt = c.updated_at || createdAt
+        const authorHash = c.author_email ? await getGravatarHash(c.author_email) : null
+        commentStmts.push(
           this.db.prepare(`
-            INSERT INTO comment_reactions (comment_id, ip_address, reaction_type, author_role, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, author_role, author_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).bind(
-            mappedCommentId,
-            r.ip_address,
-            r.reaction_type || 'heart',
-            r.author_role || 'user',
-            r.created_at || new Date().toISOString(),
-          )
+            c.page_url,
+            null, // defer parent linking
+            c.author_name,
+            c.author_email || null,
+            c.author_url || null,
+            c.content,
+            createdAt,
+            updatedAt,
+            c.status || 'approved',
+            c.ip_address || null,
+            c.author_role || 'user',
+            authorHash,
+          ),
         )
+        commentMeta.push(c)
       }
-    }
 
-    for (let i = 0; i < commentReactionStmts.length; i += 50) {
-      const batch = commentReactionStmts.slice(i, i + 50)
-      await this.db.batch(batch)
-      imported_comment_reactions += batch.length
+      for (let i = 0; i < commentStmts.length; i += ImportExportService.D1_BATCH_SIZE) {
+        const batch = commentStmts.slice(i, i + ImportExportService.D1_BATCH_SIZE)
+        const batchMeta = commentMeta.slice(i, i + ImportExportService.D1_BATCH_SIZE)
+        const results = await this.db.batch(batch)
+        for (let j = 0; j < results.length; j++) {
+          const meta = (results[j] as any).meta
+          const newId = meta.last_row_id as number
+          const exportId = batchMeta[j].id
+          if (exportId) idMap.set(exportId, newId)
+          imported_comments++
+        }
+      }
+
+      // Also map existing comments (they keep their original IDs)
+      for (const c of data.comments) {
+        const fp = this.commentFingerprint(c.page_url, c.author_name, c.content)
+        if (existingFingerprints.has(fp)) {
+          idMap.set(c.id, existingFingerprints.get(fp)!)
+        }
+      }
+
+      // 4b: Collect ALL remaining mutations (parent updates + reactions)
+      //     into a single array so they share batches and maximise atomicity.
+      const remainingStmts: D1PreparedStatement[] = []
+      let remainingPostReactionCount = 0
+      let remainingCommentReactionCount = 0
+
+      // Parent-ID updates
+      for (let i = 0; i < newComments.length; i++) {
+        const c = newComments[i]
+        if (c.parent_id && idMap.has(c.parent_id)) {
+          const newId = idMap.get(c.id)!
+          const mappedParentId = idMap.get(c.parent_id)
+          if (mappedParentId) {
+            remainingStmts.push(
+              this.db.prepare('UPDATE comments SET parent_id = ? WHERE id = ?')
+                .bind(mappedParentId, newId),
+            )
+          }
+        }
+      }
+
+      // Post reactions
+      if (data.post_reactions) {
+        for (const r of data.post_reactions) {
+          const key = `${r.page_url}|${r.ip_address}|${r.reaction_type}`
+          if (existingPR.has(key)) {
+            skipped_post_reactions++
+            continue
+          }
+          remainingStmts.push(
+            this.db.prepare(`
+              INSERT INTO post_reactions (page_url, ip_address, reaction_type, created_at)
+              VALUES (?, ?, ?, ?)
+            `).bind(
+              r.page_url,
+              r.ip_address,
+              r.reaction_type || 'heart',
+              r.created_at || new Date().toISOString(),
+            ),
+          )
+          remainingPostReactionCount++
+        }
+      }
+
+      // Comment reactions
+      if (data.comment_reactions) {
+        for (const r of data.comment_reactions) {
+          const mappedCommentId = idMap.get(r.comment_id)
+          if (!mappedCommentId) {
+            skipped_comment_reactions++
+            continue
+          }
+          const key = `${mappedCommentId}|${r.ip_address}|${r.reaction_type}|${r.author_role || 'user'}`
+          if (existingCR.has(key)) {
+            skipped_comment_reactions++
+            continue
+          }
+          remainingStmts.push(
+            this.db.prepare(`
+              INSERT INTO comment_reactions (comment_id, ip_address, reaction_type, author_role, created_at)
+              VALUES (?, ?, ?, ?, ?)
+            `).bind(
+              mappedCommentId,
+              r.ip_address,
+              r.reaction_type || 'heart',
+              r.author_role || 'user',
+              r.created_at || new Date().toISOString(),
+            ),
+          )
+          remainingCommentReactionCount++
+        }
+      }
+
+      // 4c: Execute remaining statements in batches
+      for (let i = 0; i < remainingStmts.length; i += ImportExportService.D1_BATCH_SIZE) {
+        const batch = remainingStmts.slice(i, i + ImportExportService.D1_BATCH_SIZE)
+        await this.db.batch(batch)
+      }
+
+      imported_post_reactions = remainingPostReactionCount
+      imported_comment_reactions = remainingCommentReactionCount
+    } catch (err) {
+      console.error('[Import] Batch failed, rolling back:', err)
+      await this.rollbackFromSnapshot(snapshot)
+      return {
+        error: 'Import failed and was rolled back: ' + (err as Error).message,
+      }
     }
 
     return {
@@ -397,50 +450,66 @@ export class ImportExportService {
     let skipped_duplicates = 0
     const uniquePages = new Set()
 
+    // Filter out invalid and duplicate comments before any DB mutations
+    const validComments: any[] = []
     for (const comment of comments) {
+      if (!comment.page_url || !comment.author_name || !comment.content) {
+        skipped_duplicates++
+        continue
+      }
       const fp = this.commentFingerprint(comment.page_url, comment.author_name, comment.content)
       if (existingFingerprints.has(fp)) {
         skipped_duplicates++
         continue
       }
+      existingFingerprints.set(fp, -1) // mark as seen to deduplicate within the batch
+      validComments.push(comment)
+    }
 
-      try {
-        const parentId = comment.parent_id || null
-        const authorUrl = comment.author_url || null
-        const status = comment.status || 'approved'
-        const ip = comment.ip_address || null
-        const createdAt = comment.created_at || new Date().toISOString()
-        const updatedAt = comment.updated_at || createdAt
+    // Snapshot for rollback
+    const snapshot = await this.getTableMaxIds()
 
-        if (!comment.page_url || !comment.author_name || !comment.content) {
-          skipped_duplicates++
-          continue
-        }
+    try {
+      const stmts: D1PreparedStatement[] = []
+      const meta: any[] = []
 
+      for (const comment of validComments) {
         const authorHash = comment.author_email ? await getGravatarHash(comment.author_email) : null
-        await this.db.prepare(`
-          INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, author_role, author_hash)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          comment.page_url,
-          parentId,
-          comment.author_name,
-          comment.author_email || null,
-          authorUrl,
-          comment.content,
-          createdAt,
-          updatedAt,
-          status,
-          ip,
-          comment.author_role || 'user',
-          authorHash,
-        ).run()
-
-        imported++
-        if (comment.page_url) uniquePages.add(comment.page_url)
-      } catch {
-        skipped_duplicates++
+        stmts.push(
+          this.db.prepare(`
+            INSERT INTO comments (page_url, parent_id, author_name, author_email, author_url, content, created_at, updated_at, status, ip_address, author_role, author_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            comment.page_url,
+            comment.parent_id || null,
+            comment.author_name,
+            comment.author_email || null,
+            comment.author_url || null,
+            comment.content,
+            comment.created_at || new Date().toISOString(),
+            comment.updated_at || comment.created_at || new Date().toISOString(),
+            comment.status || 'approved',
+            comment.ip_address || null,
+            comment.author_role || 'user',
+            authorHash,
+          ),
+        )
+        meta.push(comment)
       }
+
+      for (let i = 0; i < stmts.length; i += ImportExportService.D1_BATCH_SIZE) {
+        const batch = stmts.slice(i, i + ImportExportService.D1_BATCH_SIZE)
+        const batchMeta = meta.slice(i, i + ImportExportService.D1_BATCH_SIZE)
+        await this.db.batch(batch)
+        for (const c of batchMeta) {
+          imported++
+          if (c.page_url) uniquePages.add(c.page_url)
+        }
+      }
+    } catch (err) {
+      console.error('[Import] Legacy batch failed, rolling back:', err)
+      await this.rollbackFromSnapshot(snapshot)
+      return { error: 'Import failed and was rolled back: ' + (err as Error).message }
     }
 
     return {
