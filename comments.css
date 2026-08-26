@@ -431,10 +431,20 @@
     flex: 1;
 }
 
+.comment-author a {
+    color: var(--cg-primary);
+}
+
 .comments-system .comment-date {
     font-size: 0.9rem;
     font-weight: 400;
 }
+
+a.comment-date {
+ color: var(--cg-primary)
+}
+
+
 
 .comments-system .badge-pending {
     background-color: var(--cg-pending-badge-bg);
