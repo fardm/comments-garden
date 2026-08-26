@@ -2,7 +2,7 @@
 :root {
     --light: #fafbf9;
     --lightgray: #d1e0d9;
-    --gray: rgb(138, 168, 147);
+    --gray: #8aa893;
     --darkgray: #1f2e25;
     --dark: #292e1f;
     --primary: #1ea274;
@@ -22,7 +22,7 @@
     --light: #151b25;
     --lightgray: #2b333f;
     --gray: #9ba6b5;
-    --darkgray: #f5f7fa;
+    --darkgray: #e0e3e6;
     --dark: #f5f7fa;
     --primary: #33bd8d;
     --on-primary: #131b2a;

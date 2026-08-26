@@ -1,12 +1,12 @@
 .comments-system {
-    --cg-light: #f9f1e9;
-    --cg-lightgray: #e3d3c2;
-    --cg-gray: #9e9a97;
-    --cg-darkgray: #383736;
-    --cg-dark: #1f1e1d;
-    --cg-primary: #e37b3e;
-    --cg-primary-shadow: #ee5a2512; 
-    --cg-on-background: #f9e8d6;
+    --cg-light: #fafbf9;
+    --cg-lightgray: #d5dfda;
+    --cg-gray: #93a498;
+    --cg-darkgray: #272c29;
+    --cg-dark: #191d1b;
+    --cg-primary: #1ea274;
+    --cg-primary-shadow: #1ea27426; 
+    --cg-on-background: #f0f5f2;
     
     --cg-message-success-bg: #d4edda;
     --cg-message-success-text: #155724;
@@ -18,20 +18,17 @@
     --cg-pending-badge-bg: #ffc107;
     --cg-pending-badge-text: #333333;
     --cg-btn-brightness: brightness(94%);
-
-
 }
 
  [saved-theme="dark"] .comments-system {
-    --cg-light: #1e1e1e;
-    --cg-lightgray: #383838;
-    --cg-gray: #646464;
-    --cg-darkgray: #e6e7f7;
-    --cg-dark: #f7f8ff;
-    --cg-primary: #ffa06a;
-    --cg-primary-shadow: #ee5a2512;
-    --cg-on-background: #1f1f22;
-
+    --cg-light: #1c1f22;
+    --cg-lightgray: #363a40;
+    --cg-gray: #a8adb3;
+    --cg-darkgray: #dde0e4;
+    --cg-dark: #f5f7fa;
+    --cg-primary: #3ee3a9;
+    --cg-primary-shadow: #3ee3a91f;
+    --cg-on-background: #202327;
 
     --cg-message-success-bg: rgba(21, 87, 36, 0.4);
     --cg-message-success-text: #e2e3e5;
@@ -43,12 +40,19 @@
     --cg-pending-badge-bg: #ffc107;
     --cg-pending-badge-text: #000000;
     --cg-btn-brightness: brightness(110%);
-
-
 }
 
 .comments-system {
     margin: 2rem auto;
+}
+
+.post-comment {
+    border: solid 1px var(--cg-lightgray);
+    box-sizing: border-box;
+    background: var(--cg-on-background);
+    border-radius: .5rem;
+    margin-top: 1rem;
+    padding: 1.5rem;
 }
 
 
@@ -663,6 +667,16 @@
 /* =========================================
    Recent Comments Widget Styles
    ========================================= */
+.recent-comments-widget {
+    border: solid 1px var(--cg-lightgray);
+    box-sizing: border-box;
+    background: var(--cg-on-background);
+    border-radius: .5rem;
+    min-height: 32rem;
+    padding: 1rem;
+    overflow: hidden;
+}
+
 .rc-widget-list {
   display: flex;
   flex-direction: column;
