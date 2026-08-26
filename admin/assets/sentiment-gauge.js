@@ -66,7 +66,7 @@ class SentimentGauge extends HTMLElement {
           flex-direction: column;
           gap: 8px;
           font-size: 14px;
-          color: #666;
+          color: var(--body-text);
         }
 
         .stat-line {
