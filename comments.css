@@ -1,4 +1,4 @@
-.comments-system {
+:root {
     --cg-light: #fafbf9;
     --cg-lightgray: #d5dfda;
     --cg-gray: #93a498;
@@ -20,7 +20,7 @@
     --cg-btn-brightness: brightness(94%);
 }
 
- [saved-theme="dark"] .comments-system {
+ [saved-theme="dark"] {
     --cg-light: #1c1f22;
     --cg-lightgray: #363a40;
     --cg-gray: #a8adb3;
@@ -614,7 +614,7 @@
     box-sizing: border-box;
 }
 
-.help-icon {
+.cg-help-icon {
     position: absolute;
     top: 10px;
     inset-inline-end: 10px;
@@ -633,7 +633,7 @@
     z-index: 10; 
 }
 
-.tooltip {
+.--cg-tooltip {
     position: absolute;
     top: 40px; 
     left: 10px; 
@@ -651,12 +651,12 @@
     font-size: 0.8rem;
 }
 
-.tooltip p {
+.--cg-tooltip p {
     line-height: 0.9rem;
 }
 
-.help-icon:hover + .tooltip,
-.tooltip:hover {
+.cg-help-icon:hover + .--cg-tooltip,
+.--cg-tooltip:hover {
     visibility: visible;
     opacity: 1;
 }

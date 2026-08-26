@@ -499,8 +499,8 @@ class CommentSystem {
                 <div class="form-group">
                     <div class="textarea-wrapper">
                         <textarea name="content" placeholder="${this.escapeHtml(this.t('form.content'))}" required class="form-textarea" rows="4"></textarea>
-                        <div class="help-icon">${this.escapeHtml(this.t('form.helpIcon'))}</div>
-                        <div class="tooltip">
+                        <div class="cg-help-icon">${this.escapeHtml(this.t('form.helpIcon'))}</div>
+                        <div class="--cg-tooltip">
                             <p><strong>${this.escapeHtml(this.t('form.helpTitle'))}</strong></p>
                             <p>${this.escapeHtml(this.t('form.helpBold'))}</p>
                             <p>${this.escapeHtml(this.t('form.helpItalic'))}</p>
