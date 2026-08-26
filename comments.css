@@ -4,8 +4,8 @@
     --cg-gray: #9e9a97;
     --cg-darkgray: #383736;
     --cg-dark: #1f1e1d;
-    --cg-secondary: #e37b3e;
-    --cg-secondary-shadow: #ee5a2512; 
+    --cg-primary: #e37b3e;
+    --cg-primary-shadow: #ee5a2512; 
     --cg-on-background: #f9e8d6;
     
     --cg-message-success-bg: #d4edda;
@@ -28,8 +28,8 @@
     --cg-gray: #646464;
     --cg-darkgray: #e6e7f7;
     --cg-dark: #f7f8ff;
-    --cg-secondary: #ffa06a;
-    --cg-secondary-shadow: #ee5a2512;
+    --cg-primary: #ffa06a;
+    --cg-primary-shadow: #ee5a2512;
     --cg-on-background: #1f1f22;
 
 
@@ -93,8 +93,8 @@
 .comments-system .form-input:focus,
 .comments-system .form-textarea:focus {
     outline: none;
-    border-color: var(--cg-secondary);
-    box-shadow: 0 0 0 3px var(--cg-secondary-shadow);
+    border-color: var(--cg-primary);
+    box-shadow: 0 0 0 3px var(--cg-primary-shadow);
 }
 
 .comments-system .form-textarea {
@@ -114,7 +114,7 @@
 
 .comments-system .checkbox-label input[type="checkbox"] {
     cursor: pointer;
-    accent-color: var(--cg-secondary);
+    accent-color: var(--cg-primary);
     margin: 0;
 }
 
@@ -150,7 +150,7 @@
 
 /* Submit Button - The Fix */
 #comments-container .comments-system button.btn-submit {
-    background: var(--cg-secondary) !important;
+    background: var(--cg-primary) !important;
     color: var(--cg-light) !important;
     border: none;
     opacity: 1 !important;
@@ -258,7 +258,7 @@
     background: var(--cg-on-background);
     border: 1px solid var(--cg-lightgray);
     border-radius: 12px;
-    box-shadow: var(--cg-secondary-shadow);
+    box-shadow: var(--cg-primary-shadow);
 
     min-width: 210px;
 
@@ -330,16 +330,16 @@
 
 
 #comments-container .comments-system button.btn-reaction-funny.reacted {
-    color: var(--cg-secondary) !important;
-    border-color: var(--cg-secondary) !important;
+    color: var(--cg-primary) !important;
+    border-color: var(--cg-primary) !important;
     filter: var(--cg-btn-brightness);
 }
 
 #comments-container .comments-system button.btn-reaction.reacted {
     /* Fallback styling for new reaction types */
-    color: var(--cg-secondary) !important;
-    border-color: var(--cg-secondary) !important;
-    background: var(--cg-secondary-shadow) !important;
+    color: var(--cg-primary) !important;
+    border-color: var(--cg-primary) !important;
+    background: var(--cg-primary-shadow) !important;
 }
 
 
@@ -397,7 +397,7 @@
 }
 
 .comment.admin-comment {
-    border-inline-start: 3px solid var(--cg-secondary);
+    border-inline-start: 3px solid var(--cg-primary);
 }
 
 .comments-system .comment-meta {
@@ -715,7 +715,7 @@
 
 .rc-widget-link {
   text-decoration: none;
-  color: var(--cg-secondary);
+  color: var(--cg-primary);
 }
 
 .rc-widget-loading,
