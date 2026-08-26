@@ -1,33 +1,50 @@
 .comments-system {
+
+    --light: #f9f1e9;
+    --lightgray: #e3d3c2;
+    --gray: #9e9a97;
+    --darkgray: #383736;
+    --dark: #1f1e1d;
+    --secondary: #e37b3e;
+    --secondary-shadow: #ee5a2512; 
+    --on-background: #f9e8d6;
+    
     --cs-message-success-bg: #d4edda;
     --cs-message-success-text: #155724;
+    --cs-message-error-text: #de3b3b;
     --cs-message-error-bg: #f8d7da;
     --cs-message-info-bg: #d1ecf1;
     --cs-message-info-text: #0c5460;
     --cs-pending-bg: #fffbf0;
     --cs-pending-badge-bg: #ffc107;
     --cs-pending-badge-text: #333333;
-
     --btn-brightness: brightness(94%);
-    /* برای من توی کاستوم تعریف شده */
-    /* --on-background: #f9e8d6; */
-    /* --secondary-shadow: #ee5a2512; */ 
+
 
 }
 
  [saved-theme="dark"] .comments-system {
+    --light: #1e1e1e;
+    --lightgray: #383838;
+    --gray: #646464;
+    --darkgray: #e6e7f7;
+    --dark: #f7f8ff;
+    --secondary: #ffa06a;
+    --secondary-shadow: #ee5a2512;
+    --on-background: #1f1f22;
+
+
     --cs-message-success-bg: rgba(21, 87, 36, 0.4);
     --cs-message-success-text: #e2e3e5;
+    --cs-message-error-text: #ffc5c5;
     --cs-message-error-bg: rgba(114, 28, 36, 0.4);
     --cs-message-info-bg: rgba(12, 84, 96, 0.4);
     --cs-message-info-text: #e2e3e5;
     --cs-pending-bg: rgba(255, 193, 7, 0.15);
     --cs-pending-badge-bg: #ffc107;
     --cs-pending-badge-text: #000000;
-
     --btn-brightness: brightness(110%);
-    /* --on-background: #1f1f22; */
-    /* --secondary-shadow: #ee5a2512; */
+
 
 }
 
@@ -706,7 +723,7 @@
 
 .rc-widget-link {
   text-decoration: none;
-  color: var(--tertiary);
+  color: var(--secondary);
 }
 
 .rc-widget-loading,
