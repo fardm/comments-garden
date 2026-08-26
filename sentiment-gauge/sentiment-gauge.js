@@ -54,11 +54,11 @@ class SentimentGauge extends HTMLElement {
         }
 
         .needle-path {
-          fill: #333;
+          fill: var(--body-text);
         }
 
         .needle-pivot {
-          fill: #333;
+          fill: var(--body-text);
         }
 
         .stats {
