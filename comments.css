@@ -49,12 +49,9 @@
 
 .comments-system {
     margin: 2rem auto;
-    color: var(--cg-btn-brightness)
 }
 
-/* Post Reactions Section
-   Row 1: Add Reaction button + picker (stable position)
-   Row 2: registered reaction badges */
+
 .comments-system .post-reactions-section {
     display: flex;
     flex-direction: column;
@@ -367,20 +364,16 @@
 
 .comments-system .form-message.success {
     background-color: var(--cg-message-success-bg);
-    color: var(--cg-message-success-text);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-}
+    color: var(--cg-message-success-text);}
 
 .comments-system .form-message.error {
     background-color: var(--cg-message-error-bg);
     color: var(--cg-message-error-text);
-    border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .comments-system .form-message.info {
     background-color: var(--cg-message-info-bg);
     color: var(--cg-message-info-text);
-    border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 /* Comments List */
@@ -554,7 +547,7 @@
 
 /* custom */
 .befor-form-comment {
-    margin-bottom: 0
+    margin-bottom: 0;
 }
 
 .comments-system .comments-branding {
@@ -711,7 +704,7 @@
   color: var(--cg-darkgray);
   margin-bottom: 7px;
   word-break: break-word;
-  border-bottom: solid 1px #7e7e7e47;
+  border-bottom: solid 1px var(--cg-lightgray);
   padding-bottom: 6px;
 }
 
@@ -733,7 +726,7 @@
 
 .rc-widget-error {
   font-size: 0.9rem;
-  color: #e74c3c;
+  color: var(--cg-message-error-text);
 }
 .admin-reaction-badge {
     background: var(--cg-on-background);
