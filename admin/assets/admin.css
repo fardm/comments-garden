@@ -387,7 +387,7 @@
     }
 }
 
-/* ── Comments section & items (admin.html, admin-all.html) ─────────── */
+/* ── Comments section & items ─────────────────────────────────────────── */
 
 .comments-section {
     background: var(--on-background);
@@ -474,7 +474,7 @@
     color: #999;
 }
 
-/* ── Pagination (admin-all.html, admin-posts.html) ─────────────────── */
+/* ── Pagination ──────────────────────────────────────────────────────── */
 
 .pagination {
     display: flex;
@@ -539,7 +539,7 @@
     }
 }
 
-/* ── Section card (admin-post-reactions.html) */
+/* ── Section card ────────────────────────────────────────────────────── */
 
 .section-card {
     background: var(--on-background);
@@ -553,7 +553,7 @@
     margin-bottom: 1.5rem;
 }
 
-/* ── Section header row (admin-post-reactions.html) ────────────────── */
+/* ── Section header row ──────────────────────────────────────────────── */
 
 .section-header {
     display: flex;
@@ -568,7 +568,7 @@
     margin: 0;
 }
 
-/* ── stat-number color variants (admin-analytics.html, admin-posts.html) */
+/* ── stat-number color variants ───────────────────────────────────────── */
 
 .stat-number.green   { color: var(--success); }
 .stat-number.yellow  { color: #e6a817; }
@@ -577,7 +577,7 @@
 .stat-number.danger  { color: #dc3545; }
 .stat-number.warning { color: #e6a817; }
 
-/* ── Shared table primitives (admin-posts.html, admin-post-reactions.html) */
+/* ── Shared table primitives ──────────────────────────────────────────── */
 
 .actions-cell {
     text-align: right;
