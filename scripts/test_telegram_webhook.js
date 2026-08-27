@@ -142,7 +142,7 @@ function buildModerationKeyboard(commentId, currentStatus, adminPanelUrl) {
       buttons,
       [
         { text: '🔄 Refresh', callback_data: `refresh:${commentId}` },
-        { text: '🔗 Open Admin Panel', url: adminPanelUrl },
+        { text: '⚙️Admin Panel', url: adminPanelUrl },
       ],
     ],
   };
@@ -151,7 +151,7 @@ function buildModerationKeyboard(commentId, currentStatus, adminPanelUrl) {
 function buildNotFoundKeyboard(adminPanelUrl) {
   return {
     inline_keyboard: [
-      [{ text: '🔗 Open Admin Panel', url: adminPanelUrl }],
+      [{ text: '⚙️Admin Panel', url: adminPanelUrl }],
     ],
   };
 }
@@ -379,6 +379,51 @@ async function runTests() {
   const missingKb = buildNotFoundKeyboard(panelUrl);
   assertEqual(missingKb.inline_keyboard.length, 1, 'Missing comment: only admin panel row');
   assertEqual(missingKb.inline_keyboard[0][0].url, panelUrl, 'Missing comment: admin panel link');
+
+  // ━━ 9. Message handling (getOriginalText / buildStatusMessage) ━━━━━━━━━━━
+  section('Message handling: no status accumulation');
+
+  // Replicate the logic from index.ts
+  const ORIGINAL_TEXT_MARKER = '\u200B';
+  const getOriginalText = (text) => {
+    const idx = text.indexOf(ORIGINAL_TEXT_MARKER);
+    return idx !== -1 ? text.substring(0, idx) : text;
+  };
+  const buildStatusMessage = (originalText, statusLabel) =>
+    `${originalText}${ORIGINAL_TEXT_MARKER}\n\n<i>Status: ${statusLabel}</i>`;
+
+  // Initial notification with status
+  const initialMsg = '💬 <b>New comment</b>\n🔗 Post\n👤 User\n\nHello' +
+    `${ORIGINAL_TEXT_MARKER}\n\n<i>Status: ⏳ Pending</i>`;
+  assertIncludes(initialMsg, '⏳ Pending', 'Initial message contains pending status');
+
+  // getOriginalText extracts everything before the marker
+  const orig = getOriginalText(initialMsg);
+  assertEqual(orig, '💬 <b>New comment</b>\n🔗 Post\n👤 User\n\nHello', 'getOriginalText strips status');
+  assertDoesNotInclude(orig, '⏳', 'Original text has no status');
+  assertDoesNotInclude(orig, ORIGINAL_TEXT_MARKER, 'Original text has no marker');
+
+  // buildStatusMessage creates clean single-status message
+  const approvedMsg = buildStatusMessage(orig, '✅ Approved');
+  assertIncludes(approvedMsg, '✅ Approved', 'Message shows approved status');
+  assertEqual(approvedMsg.indexOf(ORIGINAL_TEXT_MARKER), orig.length, 'Marker placed at end of original text');
+
+  // Multiple status changes never accumulate
+  let msg = initialMsg;
+  for (const status of ['✅ Approved', '🗑 Deleted', '↩️ Restored', '🚫 Spam']) {
+    const cleaned = getOriginalText(msg);
+    msg = buildStatusMessage(cleaned, status);
+  }
+  const statusMatches = (msg.match(/<i>Status:/g) || []).length;
+  assertEqual(statusMatches, 1, 'Only one status line after multiple changes');
+  assertIncludes(msg, '🚫 Spam', 'Latest status is spam');
+  assertDoesNotInclude(msg, '✅', 'Previous statuses removed');
+  assertDoesNotInclude(msg, '🗑', 'Previous statuses removed');
+  assertDoesNotInclude(msg, '↩', 'Previous statuses removed');
+
+  // Without marker, getOriginalText returns full text (backward compat)
+  const noMarkerText = '💬 Old message without marker';
+  assertEqual(getOriginalText(noMarkerText), noMarkerText, 'No marker = full text returned');
 
   // ━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   console.log(`\n${'═'.repeat(60)}`);

@@ -123,11 +123,13 @@ export class TelegramService {
     adminPanelUrl: string,
   ): Promise<boolean> {
     const escapedContent = content.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // \u200B = zero-width space marker used to separate original text from status
     const message =
       `💬 <b>New comment</b>\n` +
       `🔗 ${postTitle}\n` +
       `👤 ${authorName}\n\n` +
-      `${escapedContent}`;
+      `${escapedContent}` +
+      `\u200B\n\n<i>Status: ⏳ Pending</i>`;
 
     // New comments are always pending — use buildModerationKeyboard for consistency
     const reply_markup = TelegramService.buildModerationKeyboard(commentId, 'pending', adminPanelUrl);
@@ -221,7 +223,7 @@ export class TelegramService {
         buttons,
         [
           { text: '🔄 Refresh', callback_data: `refresh:${commentId}` },
-          { text: '🔗 Open Admin Panel', url: adminPanelUrl },
+          { text: '⚙️Admin Panel', url: adminPanelUrl },
         ],
       ],
     };
@@ -234,7 +236,7 @@ export class TelegramService {
   static buildNotFoundKeyboard(adminPanelUrl: string): object {
     return {
       inline_keyboard: [
-        [{ text: '🔗 Open Admin Panel', url: adminPanelUrl }],
+        [{ text: '⚙️Admin Panel', url: adminPanelUrl }],
       ],
     };
   }
