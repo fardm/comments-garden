@@ -380,7 +380,52 @@ async function runTests() {
   assertEqual(missingKb.inline_keyboard.length, 1, 'Missing comment: only admin panel row');
   assertEqual(missingKb.inline_keyboard[0][0].url, panelUrl, 'Missing comment: admin panel link');
 
-  // ━━ 9. Message handling (getOriginalText / buildStatusMessage) ━━━━━━━━━━━
+  // ━━ 9. extractSlug ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  section('extractSlug');
+
+  // Replicate the static method
+  const extractSlug = (input) => {
+    if (!input) return '';
+    try {
+      const u = new URL(input);
+      return u.pathname.replace(/\/+$/, '').split('/').filter(Boolean).pop() || u.hostname;
+    } catch {
+      return input.replace(/^\/+/, '').replace(/\/+$/, '').split('/').filter(Boolean).pop() || input;
+    }
+  };
+
+  assertEqual(extractSlug('https://example.com/my-post'), 'my-post', 'Standard URL slug');
+  assertEqual(extractSlug('https://example.com/blog/2024/hello-world'), 'hello-world', 'Deep path slug');
+  assertEqual(extractSlug('https://example.com/my-post/'), 'my-post', 'Trailing slash stripped');
+  assertEqual(extractSlug('https://example.com/my-post///'), 'my-post', 'Multiple trailing slashes');
+  assertEqual(extractSlug('https://example.com/'), 'example.com', 'Root path returns hostname');
+  assertEqual(extractSlug('https://example.com'), 'example.com', 'No path returns hostname');
+  assertEqual(extractSlug('/my-post'), 'my-post', 'Leading slash stripped');
+  assertEqual(extractSlug('/blog/hello/'), 'hello', 'Relative path with slashes');
+  assertEqual(extractSlug('plain-slug'), 'plain-slug', 'Plain text slug');
+  assertEqual(extractSlug(''), '', 'Empty string returns empty');
+
+  // ━━ 10. buildLinkHeader ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  section('buildLinkHeader');
+
+  const buildLinkHeader = (pageUrl) => {
+    const slug = extractSlug(pageUrl);
+    const escapedSlug = slug.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return `🔗 <a href="${pageUrl}">${escapedSlug}</a>`;
+  };
+
+  const header1 = buildLinkHeader('https://example.com/my-post');
+  assertIncludes(header1, '🔗', 'Header contains link emoji');
+  assertIncludes(header1, '<a href="https://example.com/my-post">', 'Header has correct href');
+  assertIncludes(header1, '>my-post<', 'Header has slug as visible text');
+  assertDoesNotInclude(header1, '💬', 'No 💬 New comment header');
+  assertDoesNotInclude(header1, '👤', 'No 👤 author line');
+
+  const header2 = buildLinkHeader('https://ifard.ir/blog/hello-world/');
+  assertIncludes(header2, '<a href="https://ifard.ir/blog/hello-world/">', 'Custom domain href preserved');
+  assertIncludes(header2, '>hello-world<', 'Last path segment used as slug');
+
+  // ━━ 11. Message handling (getOriginalText / buildStatusMessage) ━━━━━━━━━━━
   section('Message handling: no status accumulation');
 
   // Replicate the logic from index.ts
@@ -392,16 +437,19 @@ async function runTests() {
   const buildStatusMessage = (originalText, statusLabel) =>
     `${originalText}${ORIGINAL_TEXT_MARKER}\n\n<i>Status: ${statusLabel}</i>`;
 
-  // Initial notification with status
-  const initialMsg = '💬 <b>New comment</b>\n🔗 Post\n👤 User\n\nHello' +
+  // Initial notification with status (new format: link header + content)
+  const initialMsg = buildLinkHeader('https://example.com/my-post') +
+    '\nHello world' +
     `${ORIGINAL_TEXT_MARKER}\n\n<i>Status: ⏳ Pending</i>`;
   assertIncludes(initialMsg, '⏳ Pending', 'Initial message contains pending status');
+  assertDoesNotInclude(initialMsg, '💬', 'No 💬 New comment in message');
+  assertIncludes(initialMsg, '<a href', 'Message contains clickable link');
 
   // getOriginalText extracts everything before the marker
   const orig = getOriginalText(initialMsg);
-  assertEqual(orig, '💬 <b>New comment</b>\n🔗 Post\n👤 User\n\nHello', 'getOriginalText strips status');
   assertDoesNotInclude(orig, '⏳', 'Original text has no status');
   assertDoesNotInclude(orig, ORIGINAL_TEXT_MARKER, 'Original text has no marker');
+  assertIncludes(orig, 'my-post', 'Original text preserves slug');
 
   // buildStatusMessage creates clean single-status message
   const approvedMsg = buildStatusMessage(orig, '✅ Approved');
@@ -422,8 +470,16 @@ async function runTests() {
   assertDoesNotInclude(msg, '↩', 'Previous statuses removed');
 
   // Without marker, getOriginalText returns full text (backward compat)
-  const noMarkerText = '💬 Old message without marker';
+  const noMarkerText = 'Old message without marker';
   assertEqual(getOriginalText(noMarkerText), noMarkerText, 'No marker = full text returned');
+
+  // Full initial message format: link + content + status
+  const fullInitial = buildLinkHeader('https://example.com/test-post') +
+    '\nGreat article!' +
+    `${ORIGINAL_TEXT_MARKER}\n\n<i>Status: ⏳ Pending</i>`;
+  assertIncludes(fullInitial, '<a href="https://example.com/test-post">test-post</a>', 'Full message has clickable slug');
+  assertDoesNotInclude(fullInitial, '💬', 'Full message has no 💬 header');
+  assertDoesNotInclude(fullInitial, '👤', 'Full message has no 👤 author');
 
   // ━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   console.log(`\n${'═'.repeat(60)}`);

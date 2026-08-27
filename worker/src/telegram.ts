@@ -111,6 +111,29 @@ export class TelegramService {
   }
 
   /**
+   * Extract the last path segment (slug) from a URL or path string.
+   */
+  static extractSlug(input: string): string {
+    if (!input) return '';
+    try {
+      const u = new URL(input);
+      return u.pathname.replace(/\/+$/, '').split('/').filter(Boolean).pop() || u.hostname;
+    } catch {
+      return input.replace(/^\/+/, '').replace(/\/+$/, '').split('/').filter(Boolean).pop() || input;
+    }
+  }
+
+  /**
+   * Build the clickable link header line for a comment notification.
+   * Format: 🔗 <a href="url">slug</a>
+   */
+  static buildLinkHeader(pageUrl: string): string {
+    const slug = TelegramService.extractSlug(pageUrl);
+    const escapedSlug = slug.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return `🔗 <a href="${pageUrl}">${escapedSlug}</a>`;
+  }
+
+  /**
    * Send a new comment notification with moderation action buttons.
    */
   async sendCommentNotificationWithActions(
@@ -122,12 +145,11 @@ export class TelegramService {
     content: string,
     adminPanelUrl: string,
   ): Promise<boolean> {
-    const escapedContent = content.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    const escapedContent = content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const header = TelegramService.buildLinkHeader(postTitle);
     // \u200B = zero-width space marker used to separate original text from status
     const message =
-      `💬 <b>New comment</b>\n` +
-      `🔗 ${postTitle}\n` +
-      `👤 ${authorName}\n\n` +
+      `${header}\n` +
       `${escapedContent}` +
       `\u200B\n\n<i>Status: ⏳ Pending</i>`;
 
@@ -138,20 +160,20 @@ export class TelegramService {
   }
 
   /**
-   * Send a new comment notification.
-   */  async sendCommentNotification(
+   * Send a new comment notification (without action buttons).
+   */
+  async sendCommentNotification(
     botToken: string,
     chatId: string,
     postTitle: string,
     authorName: string,
     content: string,
   ): Promise<boolean> {
+    const escapedContent = content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const header = TelegramService.buildLinkHeader(postTitle);
     const message =
-      `🔗 ${postTitle}\n` +
-      `👤 ${authorName}\n` +
-      `\n` +
-      `\n` +
-      `💬 ${content}`;
+      `${header}\n` +
+      `${escapedContent}`;
     return this.sendMessage(botToken, chatId, message);
   }
 
