@@ -667,30 +667,6 @@ adminDb.post('/delete-spam', async (c) => {
 
 app.route('/api/admin/db', adminDb)
 
-// ── Admin Telegram ───────────────────────────────────────────────────────────
-
-const adminTelegram = new Hono<{ Bindings: Bindings }>()
-
-adminTelegram.get('/status', async (c) => {
-  const telegram = new TelegramService(c.env.DB)
-  const tgSettings = await telegram.getSettings()
-  return c.json({
-    telegram_enabled: tgSettings.telegram_enabled === 'true',
-    chat_id_set: tgSettings.telegram_chat_id !== '',
-    bot_token_set: !!(c.env.TELEGRAM_BOT_TOKEN as string),
-  })
-})
-
-adminTelegram.post('/toggle', async (c) => {
-  const telegram = new TelegramService(c.env.DB)
-  const body = await c.req.json().catch(() => ({}))
-  const enabled = body.telegram_enabled === true || body.telegram_enabled === 'true' ? 'true' : 'false'
-  await telegram.saveSettings({ telegram_enabled: enabled })
-  return c.json({ success: true, telegram_enabled: enabled === 'true' })
-})
-
-app.route('/api/admin/telegram', adminTelegram)
-
 // ── Admin Import/Export ──────────────────────────────────────────────────────
 
 const adminImportExport = new Hono<{ Bindings: Bindings }>()
@@ -820,10 +796,6 @@ function handleLegacyAction(c: any): Response | null {
   // Admin database routes
   if (action === 'db_delete_data') return c.redirect('/api/admin/db/delete-data', 302)
   if (action === 'delete_spam') return c.redirect('/api/admin/db/delete-spam', 302)
-
-  // Admin Telegram routes
-  if (action === 'telegram_status') return c.redirect('/api/admin/telegram/status', 302)
-  if (action === 'telegram_toggle') return c.redirect('/api/admin/telegram/toggle', 302)
 
   // Admin import/export routes
   if (action === 'import_comments') return legacyActionRedirect(c, '/api/admin/import-export/import')

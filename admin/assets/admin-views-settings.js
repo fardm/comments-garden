@@ -200,8 +200,6 @@ VIEWS['settings-general'] = {
                         admin_email: adminEmail,
                         admin_url: adminUrl,
                         // Preserve existing settings not shown on this page
-                        telegram_enabled: currentSettings.telegram_enabled || 'false',
-                        telegram_chat_id: currentSettings.telegram_chat_id || '',
                         max_comment_length: currentSettings.max_comment_length || '5000',
                         allow_guest_comments: currentSettings.allow_guest_comments || 'true'
                     },
@@ -581,86 +579,6 @@ VIEWS['settings-database'] = {
         if (confCheckbox) {
             confCheckbox.addEventListener('change', updateDeleteDataBtn);
         }
-    }
-};
-
-VIEWS['settings-notifications'] = {
-    title: 'Notification Settings',
-    css: `
-        .util-card { background:var(--on-background); border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,.1); overflow:hidden; }
-        .util-card-header { padding:1rem 1.5rem; border-bottom:1px solid var(--gray,#e9ecef); display:flex; align-items:center; gap:.6rem; }
-        .util-card-header h2 { font-size:1.1rem; color:var(--body-text,#333); }
-        .util-card-header .icon { font-size:1.2rem; }
-        .util-card-body { padding:1.5rem; }
-        .util-card-body p { color:var(--body-text,#666); opacity:.8; font-size:.9rem; margin-bottom:1rem; }
-        .setting-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; padding:.75rem 0; border-bottom:1px solid var(--gray,#f0f0f0); }
-        .setting-row:last-of-type { border-bottom:none; }
-        .setting-label { flex:1 1 200px; }
-        .setting-label strong { color:var(--body-text); display:block; font-size:.95rem; }
-        .setting-label span { font-size:.82rem; color:var(--body-text); opacity:.8; }
-        .themed-control { background-color:transparent; color:var(--body-text); border:1px solid var(--gray,#ddd); border-radius:4px; padding:.5rem .75rem; font-size:.95rem; }
-        .toggle-switch { position:relative; display:inline-block; width:46px; height:26px; flex-shrink:0; }
-        .toggle-switch input { opacity:0; width:0; height:0; }
-        .toggle-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; border-radius:26px; transition:.3s; }
-        .toggle-slider:before { position:absolute; content:""; height:20px; width:20px; left:3px; bottom:3px; background-color:white; border-radius:50%; transition:.3s; }
-        input:checked+.toggle-slider { background-color:#1ea274; }
-        input:checked+.toggle-slider:before { transform:translateX(20px); }
-    `,
-    html: () => `
-        <div class="container">
-            <h2 style="margin-bottom: 1.5rem;">Notification</h2>
-            <div class="util-card">
-                <div class="util-card-header"><span class="icon">🔔</span><h2>Telegram Notifications</h2></div>
-                <div class="util-card-body">
-                    <p>Get notified in Telegram when new comments are submitted. Configure the bot token and chat ID using <code style="background:var(--gray,#f0f0f0);padding:.15rem .4rem;border-radius:3px;font-size:.88rem;">npm run telegram</code>.</p>
-                    <div id="telegram-message"></div>
-                    <div class="setting-row">
-                        <div class="setting-label"><strong>Telegram Notifications</strong><span>Send new comment alerts to Telegram</span></div>
-                        <label class="toggle-switch"><input type="checkbox" id="setting-telegram-enabled"><span class="toggle-slider"></span></label>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `,
-    init({ hoistToWindow }) {
-        async function loadTelegramStatus() {
-            try {
-                const { ok, data } = await apiFetch(`${API_URL}/admin/telegram/status`);
-                if (ok) {
-                    const cb = document.getElementById('setting-telegram-enabled');
-                    if (cb) cb.checked = data?.telegram_enabled;
-                }
-            } catch (e) { console.error('Telegram status load failed', e); }
-        }
-
-        async function toggleTelegram() {
-            const cb = document.getElementById('setting-telegram-enabled');
-            const msgEl = document.getElementById('telegram-message');
-            if (!cb) return;
-            const enabled = cb.checked;
-            try {
-                const { ok, data } = await apiFetch(`${API_URL}/admin/telegram/toggle`, {
-                    method: 'POST',
-                    body: { telegram_enabled: enabled },
-                });
-                if (ok) {
-                    cb.checked = data?.telegram_enabled;
-                    if (msgEl) {
-                        msgEl.innerHTML = `<div class="message success">Telegram notifications ${data?.telegram_enabled ? 'enabled' : 'disabled'}.</div>`;
-                        setTimeout(() => { msgEl.innerHTML = ''; }, 2500);
-                    }
-                } else {
-                    if (msgEl) msgEl.innerHTML = `<div class="message error">${data?.error || 'Failed to update'}</div>`;
-                }
-            } catch (e) {
-                if (msgEl) msgEl.innerHTML = '<div class="message error">Network error</div>';
-            }
-        }
-
-        document.getElementById('setting-telegram-enabled')?.addEventListener('change', toggleTelegram);
-
-        hoistToWindow({ toggleTelegram });
-        loadTelegramStatus();
     }
 };
 

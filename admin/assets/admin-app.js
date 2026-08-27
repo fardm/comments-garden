@@ -15,8 +15,7 @@
  *   - admin-views-analytics.js      (VIEWS['analytics'])
  *   - admin-views-post-reactions.js  (VIEWS['post-reactions'])
  *   - admin-views-settings.js        (VIEWS['settings-general'], ['settings-reactions'],
- *                                     ['settings-database'], ['settings-notifications'],
- *                                     ['settings-import-export'])
+ *                                     ['settings-database'], ['settings-import-export'])
  */
 
 'use strict';
@@ -31,7 +30,6 @@ const NAV_ITEMS = [
         { key: 'settings-general',       label: 'General' },
         { key: 'settings-reactions',     label: 'Reactions' },
         { key: 'settings-database',      label: 'Database' },
-        { key: 'settings-notifications', label: 'Notifications' },
         { key: 'settings-import-export', label: 'Import & Export' }
     ]}
 ];
