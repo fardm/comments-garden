@@ -85,7 +85,7 @@ class SentimentGauge extends HTMLElement {
         .total {
           margin-top: 12px;
           font-weight: 500;
-          color: #444;
+          color: var(--body-text);
           padding: 4px 8px;
         }
 
