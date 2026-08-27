@@ -678,12 +678,7 @@ a.comment-date {
    Recent Comments Widget Styles
    ========================================= */
 .recent-comments-widget {
-    border: solid 1px var(--cg-lightgray);
-    box-sizing: border-box;
-    background: var(--cg-on-background);
-    border-radius: .5rem;
-    min-height: 32rem;
-    padding: 1rem;
+    padding: 0;
     overflow: hidden;
 }
 
@@ -711,7 +706,7 @@ a.comment-date {
 
 
 .rc-widget-item {
-  background: var(--cg-lightgray);
+  background: var(--cg-on-background);
   padding: 10px;
   border-radius: 5px;
   font-size: 0.9rem;
