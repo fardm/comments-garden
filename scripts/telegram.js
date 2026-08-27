@@ -59,46 +59,6 @@ function getDbName() {
   return match ? match[1] : 'comment-garden-db';
 }
 
-function getWorkerName() {
-  const toml = fs.readFileSync(WRANGLER_TOML, 'utf-8');
-  const match = toml.match(/^name\s*=\s*"([^"]+)"/m);
-  return match ? match[1] : null;
-}
-
-/**
- * Try to detect the deployed Worker URL automatically.
- * Returns the URL string or null if detection fails.
- */
-function detectWorkerUrl() {
-  const toml = fs.readFileSync(WRANGLER_TOML, 'utf-8');
-  const workerName = getWorkerName();
-
-  // 1. Check wrangler.toml for custom routes
-  const routeMatch = toml.match(/^routes\s*=\s*\[([\s\S]*?)\]/m);
-  if (routeMatch) {
-    const routeUrls = routeMatch[1].match(/"(https?:\/\/[^"\\]+)"/g);
-    if (routeUrls && routeUrls.length > 0) {
-      const url = routeUrls[0].replace(/"/g, '').replace(/\/+$/, '');
-      return url;
-    }
-  }
-
-  // 2. Check ALLOWED_ORIGINS — if a specific domain is configured,
-  //   the worker is likely served from that domain
-  const originsMatch = toml.match(/ALLOWED_ORIGINS\s*=\s*"([^"]+)"/);
-  if (originsMatch && originsMatch[1] !== '*') {
-    const origin = originsMatch[1].replace(/\/+$/, '');
-    return origin;
-  }
-
-  // 3. Construct default workers.dev URL from the worker name
-  if (workerName) {
-    return `https://${workerName}.workers.dev`;
-  }
-
-  return null;
-}
-
 function getSetting(dbName, key) {
   const result = run(`npx wrangler d1 execute "${dbName}" --remote --command="SELECT value FROM settings WHERE key='${key}'" --json`);
   if (result) {
@@ -149,46 +109,103 @@ function pushSecret(token) {
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 
+/**
+ * Validate a URL string. Returns { valid: true, url } or { valid: false, reason }.
+ */
+function validateWorkerUrl(input) {
+  const url = input.replace(/\/+$/, '');
+  if (!url) {
+    return { valid: false, reason: 'URL is empty.' };
+  }
+  if (!url.startsWith('https://')) {
+    return { valid: false, reason: 'URL must start with https://.' };
+  }
+  if (url.includes(' ')) {
+    return { valid: false, reason: 'URL must not contain spaces.' };
+  }
+  // Reject obviously malformed URLs (no domain, etc.)
+  try {
+    new URL(url);
+  } catch (_) {
+    return { valid: false, reason: 'URL is not a valid HTTPS URL.' };
+  }
+  return { valid: true, url };
+}
+
+/**
+ * Classify a network error into a user-friendly explanation.
+ */
+function classifyNetworkError(error) {
+  const msg = (error.message || '').toLowerCase();
+  const causeMsg = (error.cause && error.cause.message || '').toLowerCase();
+  const combined = msg + ' ' + causeMsg;
+
+  if (combined.includes('econnrefused')) {
+    // ECONNREFUSED usually means a local proxy/VPN/firewall is blocking
+    // the connection to api.telegram.org. Extract the target IP if present.
+    const ipMatch = combined.match(/(\d+\.\d+\.\d+\.\d+):(\d+)/);
+    const target = ipMatch ? `${ipMatch[1]}:${ipMatch[2]}` : 'the target host';
+    return [
+      `Connection refused by ${target}.`,
+      'This is typically caused by:',
+      '  - A local proxy, VPN, or firewall blocking outbound HTTPS connections',
+      '  - Corporate network restrictions on api.telegram.org',
+      '  - A misconfigured hosts file or DNS resolver routing traffic to a proxy',
+      '',
+      'Suggestions:',
+      '  - Try running this command from a different network',
+      '  - Check if you have a proxy configured (HTTP_PROXY / HTTPS_PROXY env vars)',
+      '  - Verify DNS resolution: nslookup api.telegram.org',
+      '  - Check your hosts file for any telegram-related entries',
+    ];
+  }
+  if (combined.includes('enotfound') || combined.includes('getaddrinfo')) {
+    return [
+      'DNS resolution failed for api.telegram.org.',
+      'Check your internet connection and DNS settings.',
+    ];
+  }
+  if (combined.includes('etimedout') || combined.includes('timeout')) {
+    return [
+      'Connection to api.telegram.org timed out.',
+      'The host may be unreachable from your network.',
+    ];
+  }
+  if (combined.includes('fetch failed')) {
+    return [
+      'Network request failed. Possible causes:',
+      '  - No internet connection',
+      '  - Proxy or firewall blocking the request',
+      '  - DNS resolution failure',
+    ];
+  }
+  return [
+    `Unexpected error: ${error.message}`,
+  ];
+}
+
 async function setupWebhook(token, dbName) {
   // Generate and store a webhook secret for security
   const secret = crypto.randomBytes(16).toString('hex');
   updateSetting(dbName, 'telegram_webhook_secret', secret);
   console.log('✅ Webhook secret generated and saved.');
 
-  // Auto-detect or prompt for the worker URL
   console.log();
-  let workerUrl = detectWorkerUrl();
-
-  if (workerUrl) {
-    console.log(`✓ Detected Worker URL: ${workerUrl}`);
-    const confirm = await prompt('Use this URL? (Y/n): ');
-    if (confirm && confirm.toLowerCase() !== 'y' && confirm.toLowerCase() !== 'yes' && confirm !== '') {
-      workerUrl = null; // User rejected — fall through to manual prompt
-    }
-  }
-
+  console.log('Enter your Worker URL:');
+  console.log('Example: https://comments-garden.<subdomain>.workers.dev');
+  const workerUrl = await prompt('Worker URL: ');
   if (!workerUrl) {
-    console.log('The webhook needs a public URL that Telegram can reach.');
-    console.log('This is your worker deployment URL.');
-    console.log('  Examples: https://comments-garden.your-subdomain.workers.dev');
-    console.log('            https://yourdomain.com\n');
-    workerUrl = await prompt('Enter your worker URL: ');
-    if (!workerUrl) {
-      console.log('⚠️  No URL provided. Skipping webhook registration.');
-      console.log('   You can register it later by re-running setup.\n');
-      return;
-    }
-  }
-
-  // Validate URL format
-  workerUrl = workerUrl.replace(/\/+$/, '');
-  if (!workerUrl.startsWith('https://')) {
-    console.error('❌ Invalid URL: must start with https://');
-    console.log('   Skipping webhook registration.\n');
+    console.log('⚠️  No URL provided. Skipping webhook registration.');
+    console.log('   You can register it later by re-running setup.\n');
     return;
   }
 
-  const webhookUrl = workerUrl + '/api/telegram/webhook';
+  const validation = validateWorkerUrl(workerUrl);
+  if (!validation.valid) {
+    console.error(`❌ Invalid URL: ${validation.reason}`);
+    return;
+  }
+  const webhookUrl = validation.url + '/api/telegram/webhook';
   console.log(`\nRegistering webhook: ${webhookUrl}`);
 
   try {
@@ -211,26 +228,16 @@ async function setupWebhook(token, dbName) {
       return;
     }
     if (body.ok) {
-      console.log(`✅ Webhook registered successfully: ${webhookUrl}`);
+      console.log(`✅ Webhook registered: ${webhookUrl}`);
     } else {
       console.error(`\n❌ Webhook registration failed: ${body.description || 'Unknown error'}`);
-      if (body.description && body.description.includes('host not found')) {
-        console.error('   The URL does not resolve. Make sure the worker is deployed at this URL.');
-      } else if (body.description && body.description.includes('timeout')) {
-        console.error('   Telegram could not reach the URL. Check that the worker is running and accessible.');
-      } else if (body.description && body.description.includes('wrong webhook')) {
-        console.error('   The webhook URL format is incorrect.');
-      }
     }
   } catch (e) {
     console.error(`\n❌ Webhook registration failed: ${e.message}`);
-    if (e.cause) console.error(`   Cause: ${e.cause.message || e.cause}`);
-    console.error('\n   Possible causes:');
-    console.error('   - The worker is not deployed at the specified URL');
-    console.error('   - Network connectivity issues');
-    console.error('   - DNS resolution failed for the URL');
-    console.error(`\n   You can set the webhook manually via:`);
-    console.error(`   https://api.telegram.org/bot<TOKEN>/setWebhook?url=${encodeURIComponent(webhookUrl)}&secret_token=${secret}`);
+    const lines = classifyNetworkError(e);
+    for (const line of lines) {
+      console.error(`   ${line}`);
+    }
   }
 }
 
@@ -443,3 +450,13 @@ async function main() {
 }
 
 main().catch(err => { console.error(err); process.exit(1); });
+
+// Export testable functions when required as a module (not run directly)
+if (require.main !== module) {
+  module.exports = {
+    validateWorkerUrl,
+    classifyNetworkError,
+    getDbName,
+    WRANGLER_TOML,
+  };
+}
