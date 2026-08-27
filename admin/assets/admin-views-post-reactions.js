@@ -35,6 +35,12 @@ VIEWS['post-reactions'] = {
         .delete-reaction-btn { background:none; border:none; cursor:pointer; padding:.3rem; border-radius:4px; color:var(--gray,#999); transition:color .2s; display:inline-flex; align-items:center; }
         .delete-reaction-btn:hover { color:#e74c3c; }
         .delete-reaction-btn svg { width:16px; height:16px; }
+        .pagination-bar{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:1.25rem;flex-wrap:wrap;}
+        .pagination-bar button{padding:.4rem .8rem;border:1px solid var(--gray,#ddd);border-radius:4px;background:var(--on-background);color:var(--body-text);font-size:.85rem;cursor:pointer;transition:all .15s;}
+        .pagination-bar button:hover:not(:disabled){border-color:var(--primary);color:var(--primary);}
+        .pagination-bar button:disabled{opacity:.4;cursor:not-allowed;}
+        .pagination-bar button.pg-active{background:var(--primary);color:white;border-color:var(--primary);}
+        .pagination-bar .pg-info{font-size:.82rem;color:var(--body-text);opacity:.7;margin-left:.5rem;}
         @media (max-width:768px) { table { font-size:.85rem; } th,td { padding:.5rem; } }`,
 
     html: () => `
@@ -169,11 +175,27 @@ VIEWS['post-reactions'] = {
                 const currentPage = Math.floor(latestOffset / LATEST_PAGE_SIZE) + 1;
                 const hasPrev = latestOffset > 0;
                 const hasNext = latestOffset + LATEST_PAGE_SIZE < latestTotal;
-                pagBar.innerHTML = `
-                    <button class="btn btn-secondary btn-sm" ${hasPrev ? '' : 'disabled'} onclick="goToLatestPage(${latestOffset - LATEST_PAGE_SIZE})">← Previous</button>
-                    <span class="pg-info">Page ${currentPage} of ${totalPages}</span>
-                    <button class="btn btn-secondary btn-sm" ${hasNext ? '' : 'disabled'} onclick="goToLatestPage(${latestOffset + LATEST_PAGE_SIZE})">Next →</button>
-                `;
+                const maxVis = 5;
+                let start = Math.max(1, currentPage - Math.floor(maxVis / 2));
+                let end = Math.min(totalPages, start + maxVis - 1);
+                if (end - start < maxVis - 1) start = Math.max(1, end - maxVis + 1);
+                let html = `<button onclick="goToLatestPage(${Math.max(0, latestOffset - LATEST_PAGE_SIZE)})" ${hasPrev ? '' : 'disabled'}>&#8249; Prev</button>`;
+                if (start > 1) {
+                    html += `<button onclick="goToLatestPage(0)">1</button>`;
+                    if (start > 2) html += `<span class="pg-info">…</span>`;
+                }
+                for (let i = start; i <= end; i++) {
+                    html += `<button onclick="goToLatestPage(${(i - 1) * LATEST_PAGE_SIZE})" ${i === currentPage ? 'class="pg-active"' : ''}>${i}</button>`;
+                }
+                if (end < totalPages) {
+                    if (end < totalPages - 1) html += `<span class="pg-info">…</span>`;
+                    html += `<button onclick="goToLatestPage(${(totalPages - 1) * LATEST_PAGE_SIZE})">${totalPages}</button>`;
+                }
+                html += `<button onclick="goToLatestPage(${latestOffset + LATEST_PAGE_SIZE})" ${hasNext ? '' : 'disabled'}>Next &#8250;</button>`;
+                const s = latestOffset + 1;
+                const e = Math.min(latestOffset + LATEST_PAGE_SIZE, latestTotal);
+                html += `<span class="pg-info">Showing ${s}–${e} of ${latestTotal.toLocaleString()}</span>`;
+                pagBar.innerHTML = html;
             }
             if(window.lucide) {
                 lucide.createIcons();
