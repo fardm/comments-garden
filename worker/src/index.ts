@@ -734,7 +734,7 @@ app.post('/api/telegram/webhook', async (c) => {
   const cb = update.callback_query
   const data = cb.data as string | undefined
   const chatId = String(cb.message?.chat?.id || '')
-  const messageId = cb.message?.message_id as number | undefined
+  const messageId = cb.message?.message_id as number | undefined
   if (!data || !chatId || !messageId) return c.json({ ok: true })
 
   const botToken = c.env.TELEGRAM_BOT_TOKEN as string | undefined
@@ -750,30 +750,57 @@ app.post('/api/telegram/webhook', async (c) => {
   const commentId = parseInt(data.substring(colonIdx + 1))
   if (isNaN(commentId)) return c.json({ ok: true })
 
-  // Perform the moderation action
-  let statusLabel = ''
-  if (action === 'approve') {
-    await db.prepare("UPDATE comments SET status = 'approved' WHERE id = ?").bind(commentId).run()
-    statusLabel = '✅ Comment approved and visible on site.'
-  } else if (action === 'delete') {
-    await db.prepare("UPDATE comments SET status = 'deleted' WHERE id = ?").bind(commentId).run()
-    statusLabel = '🗑 Comment deleted.'
-  } else if (action === 'spam') {
-    await db.prepare("UPDATE comments SET status = 'spam' WHERE id = ?").bind(commentId).run()
-    statusLabel = '🚫 Comment marked as spam.'
-  } else {
-    // Unknown action — just answer the callback
-    await telegram.answerCallbackQuery(botToken, cb.id)
+  // Fetch current status to validate the action is applicable
+  const comment = await db.prepare('SELECT status FROM comments WHERE id = ?').bind(commentId).first()
+  if (!comment) {
+    await telegram.answerCallbackQuery(botToken, cb.id, 'Comment not found.')
     return c.json({ ok: true })
   }
+  const currentStatus = comment.status as string
+
+  // Validate: prevent applying an action that doesn't make sense for the current status
+  const validActions: Record<string, string[]> = {
+    pending:  ['approve', 'delete', 'spam'],
+    approved: ['delete', 'spam'],
+    deleted:  ['approve'],
+    spam:     ['approve', 'delete'],
+  };
+  if (!validActions[currentStatus]?.includes(action)) {
+    await telegram.answerCallbackQuery(botToken, cb.id, `Cannot ${action} a ${currentStatus} comment.`)
+    return c.json({ ok: true })
+  }
+
+  // Perform the moderation action
+  const newStatus = action === 'approve' ? 'approved' : action === 'delete' ? 'deleted' : 'spam'
+  await db.prepare('UPDATE comments SET status = ? WHERE id = ?').bind(newStatus, commentId).run()
+
+  // Invalidate caches for this comment's page
+  const pageUrl = await getCommentPageUrl(db, commentId)
+  invalidateCommentCaches(c, db, pageUrl)
+
+  // Build status label
+  const statusLabels: Record<string, string> = {
+    approve: '✅ Approved',
+    delete:  '🗑 Deleted',
+    spam:    '🚫 Marked as spam',
+  };
+  const statusLabel = statusLabels[action] || action;
 
   // Answer the callback to dismiss the loading spinner
   await telegram.answerCallbackQuery(botToken, cb.id, statusLabel)
 
-  // Edit the original message to show the result and remove the buttons
+  // Rebuild the keyboard with valid actions for the new status
+  const requestUrl = new URL(c.req.url)
+  const adminPanelUrl = `${requestUrl.protocol}//${requestUrl.host}/admin/`
+  const newKeyboard = TelegramService.buildModerationKeyboard(commentId, newStatus, adminPanelUrl)
+
+  // Edit the original message: append status, update buttons
   const originalText = cb.message?.text || ''
-  const editedText = `${originalText}\n\n<i>${statusLabel}</i>`
-  await telegram.editMessageText(botToken, chatId, messageId, editedText)
+  // Strip any previous status lines (lines starting with ✅, 🗑, 🚫 between the last content and buttons)
+  const statusRegex = /\n\n(<i>[✅🗑🚫♻️].*<\/i>)$/
+  const baseText = originalText.replace(statusRegex, '')
+  const editedText = `${baseText}\n\n<i>${statusLabel}</i>`
+  await telegram.editMessageText(botToken, chatId, messageId, editedText, newKeyboard)
 
   return c.json({ ok: true })
 })

@@ -129,18 +129,8 @@ export class TelegramService {
       `👤 ${authorName}\n\n` +
       `${escapedContent}`;
 
-    const reply_markup = {
-      inline_keyboard: [
-        [
-          { text: '✅ Accept', callback_data: `approve:${commentId}` },
-          { text: '🗑 Delete', callback_data: `delete:${commentId}` },
-          { text: '🚫 Spam', callback_data: `spam:${commentId}` },
-        ],
-        [
-          { text: '🔗 Open Admin Panel', url: adminPanelUrl },
-        ],
-      ],
-    };
+    // New comments are always pending — use buildModerationKeyboard for consistency
+    const reply_markup = TelegramService.buildModerationKeyboard(commentId, 'pending', adminPanelUrl);
 
     return this.sendMessage(botToken, chatId, message, reply_markup);
   }
@@ -171,20 +161,23 @@ export class TelegramService {
     chatId: string,
     messageId: number,
     text: string,
+    replyMarkup?: object,
   ): Promise<boolean> {
     if (!botToken) return false;
     try {
+      const body: Record<string, unknown> = {
+        chat_id: chatId,
+        message_id: messageId,
+        text,
+        parse_mode: 'HTML',
+      };
+      if (replyMarkup) body.reply_markup = replyMarkup;
       const response = await fetch(
         `https://api.telegram.org/bot${botToken}/editMessageText`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            message_id: messageId,
-            text,
-            parse_mode: 'HTML',
-          }),
+          body: JSON.stringify(body),
         },
       );
       return response.ok;
@@ -192,6 +185,43 @@ export class TelegramService {
       console.error('[Telegram] editMessageText failed:', e);
       return false;
     }
+  }
+
+  /**
+   * Build an inline keyboard with valid moderation actions for a comment's current status.
+   *
+   * Status transition map:
+   *   pending  → approve, delete, spam
+   *   approved → delete, spam
+   *   deleted  → approve (restore)
+   *   spam     → approve, delete
+   */
+  static buildModerationKeyboard(
+    commentId: number,
+    currentStatus: string,
+    adminPanelUrl: string,
+  ): object {
+    const buttons: Array<{ text: string; callback_data: string }> = [];
+
+    if (currentStatus === 'pending' || currentStatus === 'spam') {
+      buttons.push({ text: '✅ Approve', callback_data: `approve:${commentId}` });
+    }
+    if (currentStatus === 'pending' || currentStatus === 'approved' || currentStatus === 'spam') {
+      buttons.push({ text: '🗑 Delete', callback_data: `delete:${commentId}` });
+    }
+    if (currentStatus === 'pending' || currentStatus === 'approved') {
+      buttons.push({ text: '🚫 Spam', callback_data: `spam:${commentId}` });
+    }
+    if (currentStatus === 'deleted') {
+      buttons.push({ text: '♻️ Restore', callback_data: `approve:${commentId}` });
+    }
+
+    return {
+      inline_keyboard: [
+        buttons,
+        [{ text: '🔗 Open Admin Panel', url: adminPanelUrl }],
+      ],
+    };
   }
 
   /**

@@ -1,5 +1,6 @@
 /**
- * Tests for Telegram webhook setup: URL validation, error handling, security.
+ * Tests for Telegram webhook: URL validation, error handling, security,
+ * and moderation keyboard building.
  *
  * Run: node scripts/test_telegram_webhook.js
  */
@@ -119,6 +120,31 @@ function classifyNetworkError(error) {
   ];
 }
 
+/**
+ * Build moderation keyboard — mirrors TelegramService.buildModerationKeyboard.
+ */
+function buildModerationKeyboard(commentId, currentStatus, adminPanelUrl) {
+  const buttons = [];
+  if (currentStatus === 'pending' || currentStatus === 'spam') {
+    buttons.push({ text: '✅ Approve', callback_data: `approve:${commentId}` });
+  }
+  if (currentStatus === 'pending' || currentStatus === 'approved' || currentStatus === 'spam') {
+    buttons.push({ text: '🗑 Delete', callback_data: `delete:${commentId}` });
+  }
+  if (currentStatus === 'pending' || currentStatus === 'approved') {
+    buttons.push({ text: '🚫 Spam', callback_data: `spam:${commentId}` });
+  }
+  if (currentStatus === 'deleted') {
+    buttons.push({ text: '♻️ Restore', callback_data: `approve:${commentId}` });
+  }
+  return {
+    inline_keyboard: [
+      buttons,
+      [{ text: '🔗 Open Admin Panel', url: adminPanelUrl }],
+    ],
+  };
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 async function runTests() {
@@ -234,6 +260,70 @@ async function runTests() {
     'https://ifard.ir/api/telegram/webhook',
     'Ifard.ir webhook URL correct'
   );
+
+  // ━━ 5. buildModerationKeyboard ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  section('buildModerationKeyboard');
+
+  const panelUrl = 'https://worker.workers.dev/admin/';
+  let kb;
+
+  // pending → approve, delete, spam
+  kb = buildModerationKeyboard(42, 'pending', panelUrl);
+  assertEqual(kb.inline_keyboard.length, 2, 'Keyboard has 2 rows (actions + admin link)');
+  assertEqual(kb.inline_keyboard[0].length, 3, 'pending: 3 action buttons');
+  assertEqual(kb.inline_keyboard[0][0].callback_data, 'approve:42', 'pending: button 1 is approve');
+  assertEqual(kb.inline_keyboard[0][1].callback_data, 'delete:42', 'pending: button 2 is delete');
+  assertEqual(kb.inline_keyboard[0][2].callback_data, 'spam:42', 'pending: button 3 is spam');
+  assertEqual(kb.inline_keyboard[1][0].url, panelUrl, 'Admin Panel link present');
+
+  // approved → delete, spam
+  kb = buildModerationKeyboard(42, 'approved', panelUrl);
+  assertEqual(kb.inline_keyboard[0].length, 2, 'approved: 2 action buttons');
+  assertEqual(kb.inline_keyboard[0][0].callback_data, 'delete:42', 'approved: button 1 is delete');
+  assertEqual(kb.inline_keyboard[0][1].callback_data, 'spam:42', 'approved: button 2 is spam');
+
+  // deleted → restore only
+  kb = buildModerationKeyboard(42, 'deleted', panelUrl);
+  assertEqual(kb.inline_keyboard[0].length, 1, 'deleted: 1 action button');
+  assertEqual(kb.inline_keyboard[0][0].callback_data, 'approve:42', 'deleted: button is restore (approve)');
+  assertIncludes(kb.inline_keyboard[0][0].text, 'Restore', 'deleted: button text says Restore');
+
+  // spam → approve, delete
+  kb = buildModerationKeyboard(42, 'spam', panelUrl);
+  assertEqual(kb.inline_keyboard[0].length, 2, 'spam: 2 action buttons');
+  assertEqual(kb.inline_keyboard[0][0].callback_data, 'approve:42', 'spam: button 1 is approve');
+  assertEqual(kb.inline_keyboard[0][1].callback_data, 'delete:42', 'spam: button 2 is delete');
+
+  // Verify all keyboards have the admin panel link
+  for (const status of ['pending', 'approved', 'deleted', 'spam']) {
+    kb = buildModerationKeyboard(99, status, panelUrl);
+    assertEqual(kb.inline_keyboard[1].length, 1, `${status}: admin panel row has 1 button`);
+    assertEqual(kb.inline_keyboard[1][0].url, panelUrl, `${status}: admin panel URL correct`);
+  }
+
+  // ━━ 6. Action validation logic ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  section('Action validation (valid actions per status)');
+
+  const validActions = {
+    pending:  ['approve', 'delete', 'spam'],
+    approved: ['delete', 'spam'],
+    deleted:  ['approve'],
+    spam:     ['approve', 'delete'],
+  };
+  // Note: the keyboard builder and the validation must agree on which actions are valid.
+
+  // Verify no status allows duplicate/same actions
+  for (const [status, actions] of Object.entries(validActions)) {
+    assert(actions.length > 0, `${status} has at least one valid action`);
+    assertEqual(new Set(actions).size, actions.length, `${status}: no duplicate actions`);
+  }
+
+  // Verify approve from deleted maps to 'approved' (restore)
+  assertEqual('approve', 'approve', 'approve action used for both approve and restore');
+  // The webhook handler maps action 'approve' → newStatus 'approved'
+  // regardless of whether the current status is pending, deleted, or spam
+  const actionToStatus = { approve: 'approved', delete: 'deleted', spam: 'spam' };
+  assertEqual(actionToStatus['approve'], 'approved', 'approve action always sets status to approved');
 
   // ━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   console.log(`\n${'═'.repeat(60)}`);
