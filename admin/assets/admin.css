@@ -1,3 +1,12 @@
+/* Font-face ---------------------------------- */
+@font-face {
+    font-family: "AradVF";
+    src: url("Arad-VF.woff2") format("woff2");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
 /* Colors ---------------------------------- */
 :root {
     --light: #fafbf9;
@@ -15,7 +24,7 @@
     --body-text: #1f2e27;
     --heading-text: #1f2418;
 
-    --bodyFont: "DanaVF", BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --bodyFont: "AradVF", BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 [data-theme="dark"] {
