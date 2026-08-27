@@ -120,6 +120,13 @@ From the Admin Panel, you can configure:
 - **Calendar System** — Calendar system used for dates.
 
 The **Admin Profile** is used to automatically fill in the author information when submitting replies from the Admin Panel.
+## Frontend Color Change Guide
+
+To customize the frontend colors, edit the color variables defined at the top of the `comments.css` file.
+
+For **Light Theme** colors, refer to the `:root` section.  
+For **Dark Theme** colors, refer to the `[saved-theme="dark"]` section.
+
 
 ## Telegram Notifications
 
