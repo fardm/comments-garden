@@ -631,12 +631,6 @@ adminDb.get('/stats', async (c) => {
   return c.json(result)
 })
 
-adminDb.post('/vacuum', async (c) => {
-  const admin = new AdminService(c.env.DB)
-  const result = await admin.vacuumDb()
-  return c.json(result)
-})
-
 adminDb.post('/delete-data', async (c) => {
   const db = c.env.DB
   const body = await c.req.json()
@@ -791,7 +785,6 @@ function handleLegacyAction(c: any): Response | null {
   // Admin analytics routes
   if (action === 'analytics') return c.redirect('/api/admin/analytics', 302)
   if (action === 'db_stats') return c.redirect('/api/admin/db/stats', 302)
-  if (action === 'vacuum') return c.redirect('/api/admin/db/vacuum', 302)
 
   // Admin database routes
   if (action === 'db_delete_data') return c.redirect('/api/admin/db/delete-data', 302)

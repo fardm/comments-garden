@@ -370,7 +370,7 @@ VIEWS['settings-database'] = {
         .util-card-header h2 { font-size:1.1rem; color:var(--body-text,#333); }
         .util-card-header .icon { font-size:1.2rem; }
         .util-card-body { padding:1.5rem; }
-        .db-stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:1.25rem; }
+        .db-stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; margin-bottom:1.25rem; }
         .db-stat-item { background:var(--light); border:solid 1px var(--gray); border-radius:6px; padding:.75rem 1rem; text-align:center; }
         .db-stat-item .num { font-size:1.4rem; font-weight:700; color:var(--primary); }
         .db-stat-item .lbl { font-size:.78rem; color:#888; text-transform:uppercase; letter-spacing:.03em; }
@@ -394,7 +394,6 @@ VIEWS['settings-database'] = {
                     <div id="db-stats-area"><p>Loading database stats...</p></div>
                     <div id="db-message"></div>
                     <div class="db-actions">
-                        <button class="btn btn-primary btn-sm" onclick="vacuumDb()">Optimize (VACUUM)</button>
                         <button class="btn btn-danger btn-sm" onclick="deleteSpam()" id="btn-delete-spam">Purge All Spam</button>
                         <button class="btn btn-danger btn-sm" onclick="openDeleteDataModal()">Delete Data</button>
                     </div>
@@ -437,22 +436,11 @@ VIEWS['settings-database'] = {
                     <div class="db-stat-item"><div class="num">${t.comments ?? 0}</div><div class="lbl">Comments</div></div>
                     <div class="db-stat-item"><div class="num">${t.post_reactions ?? 0}</div><div class="lbl">Post Reactions</div></div>
                     <div class="db-stat-item"><div class="num">${t.comment_reactions ?? 0}</div><div class="lbl">Comment Reactions</div></div>
-                    <div class="db-stat-item"><div class="num">${d.db_size_bytes > 0 ? formatBytes(d.db_size_bytes) : '—'}</div><div class="lbl">DB Size</div></div>
                 </div>`;
                 const spamCount = cs.spam ?? 0;
                 const btn = document.getElementById('btn-delete-spam');
                 if (btn) { btn.textContent = spamCount > 0 ? `Purge ${spamCount} Spam` : 'Purge All Spam'; btn.disabled = spamCount === 0; }
             } catch (e) { area.innerHTML = '<div class="message error">Failed to load stats</div>'; }
-        }
-
-        async function vacuumDb() {
-            const msgEl = document.getElementById('db-message');
-            msgEl.innerHTML = '<div class="message info">Running VACUUM…</div>';
-            try {
-                const { ok, data: d } = await apiFetch(`${API_URL}/admin/db/vacuum`, { method: 'POST', body: {} });
-                if (ok) { const saved=d?.saved_bytes>0?` Freed ${formatBytes(d.saved_bytes)}.`:' No space reclaimed (already optimal).'; msgEl.innerHTML=`<div class="message success">Database optimized.${saved} New size: ${formatBytes(d?.size_after)}.</div>`; loadDbStats(); }
-                else { msgEl.innerHTML = `<div class="message error">${d?.error}</div>`; }
-            } catch(e) { msgEl.innerHTML = '<div class="message error">Network error</div>'; }
         }
 
         async function deleteSpam() {
@@ -550,8 +538,6 @@ VIEWS['settings-database'] = {
                     const resStr = parts.length > 0 ? parts.join(', ') : 'no data';
                     msgEl.innerHTML = `<div class="message success">Successfully deleted ${resStr}. Vacuuming database...</div>`;
 
-                    await apiFetch(`${API_URL}/admin/db/vacuum`, { method: 'POST', body: {} });
-
                     setTimeout(() => {
                         closeDeleteDataModal();
                         loadDbStats();
@@ -569,7 +555,7 @@ VIEWS['settings-database'] = {
         }
 
         hoistToWindow({
-            vacuumDb, deleteSpam,
+            deleteSpam,
             openDeleteDataModal, closeDeleteDataModal, toggleDeleteDataSelectAll, syncDeleteDataSelectAll, runDeleteData
         });
 

@@ -106,33 +106,14 @@ export class AdminService {
     }
   }
 
-  async vacuumDb() {
-    // Note: SQLite VACUUM is not explicitly supported via D1 API in the same way,
-    // but D1 manages its own compactness. We'll return success to avoid breaking the frontend.
-    return { success: true }
-  }
-
   async getDbStats() {
     const counts = await this.getAnalytics()
-
-    // Get actual database size via SQLite PRAGMAs
-    let db_size_bytes = 0
-    try {
-      const pageCount = await this.db.prepare('PRAGMA page_count').first<{ page_count: number }>()
-      const pageSize = await this.db.prepare('PRAGMA page_size').first<{ page_size: number }>()
-      if (pageCount && pageSize) {
-        db_size_bytes = (pageCount.page_count || 0) * (pageSize.page_size || 0)
-      }
-    } catch (_) {
-      // PRAGMA may not be supported in all D1 environments
-    }
 
     // Get actual counts for each table
     const postReactionsCount = await this.db.prepare('SELECT COUNT(*) as count FROM post_reactions').first<{count: number}>()
     const commentReactionsCount = await this.db.prepare('SELECT COUNT(*) as count FROM comment_reactions').first<{count: number}>()
 
     return {
-      db_size_bytes,
       counts,
       tables: {
         comments: counts.total_comments,
