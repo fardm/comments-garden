@@ -61,8 +61,9 @@ export class CommentService {
     this.spamService = new SpamService(db)
   }
 
-  async getComments(url: string, limit: number, offset: number, ip: string) {
-    const { results: comments } = await this.db.prepare(`\r\n      SELECT * FROM comments\r\n      WHERE page_url = ? AND status = 'approved'\r\n      ORDER BY created_at ASC\r\n      LIMIT ? OFFSET ?\r\n    `).bind(url, limit, offset).all()
+  async getComments(url: string, limit: number, offset: number, ip: string, sortOrder: string = 'asc') {
+    const order = sortOrder === 'desc' ? 'DESC' : 'ASC'
+    const { results: comments } = await this.db.prepare(`\r\n      SELECT * FROM comments\r\n      WHERE page_url = ? AND status = 'approved'\r\n      ORDER BY created_at ${order}\r\n      LIMIT ? OFFSET ?\r\n    `).bind(url, limit, offset).all()
 
     // Group into threads
     const topLevel: any[] = []

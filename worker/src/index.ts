@@ -113,7 +113,9 @@ app.get('/api/comments', async (c) => {
   if (!url) return c.json({ error: 'URL is required' }, 400)
   const limit = parseInt(c.req.query('limit') || '500')
   const offset = parseInt(c.req.query('offset') || '0')
-  const result = await comments.getComments(url, limit, offset, ip)
+  const sortSettings = await settings.getAllSettings()
+  const sortOrder = sortSettings.comment_sort_order === 'desc' ? 'desc' : 'asc'
+  const result = await comments.getComments(url, limit, offset, ip, sortOrder)
 
   const postReactionsSummary = await reactions.getPostReactionsSummary(url, ip)
   const admin_avatar_url = await getAdminAvatar(settings)
