@@ -804,7 +804,7 @@ app.post('/api/telegram/webhook', async (c) => {
   const validActions: Record<string, string[]> = {
     pending:  ['approve', 'delete', 'spam'],
     approved: ['delete', 'spam'],
-    deleted:  ['approve'],
+    deleted:  ['restore'],
     spam:     ['approve', 'delete'],
   };
   if (!validActions[currentStatus]?.includes(action)) {
@@ -825,7 +825,7 @@ app.post('/api/telegram/webhook', async (c) => {
   }
 
   // Perform the moderation action
-  const newStatus = action === 'approve' ? 'approved' : action === 'delete' ? 'deleted' : 'spam'
+  const newStatus = action === 'approve' ? 'approved' : action === 'restore' ? 'pending' : action === 'delete' ? 'deleted' : 'spam'
   await db.prepare('UPDATE comments SET status = ? WHERE id = ?').bind(newStatus, commentId).run()
 
   // Invalidate caches for this comment's page
@@ -835,6 +835,7 @@ app.post('/api/telegram/webhook', async (c) => {
   // Build status label
   const actionLabels: Record<string, string> = {
     approve: '✅ Approved',
+    restore: '⏳ Pending',
     delete:  '🗑 Deleted',
     spam:    '🚫 Marked as spam',
   };

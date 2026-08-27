@@ -135,7 +135,7 @@ function buildModerationKeyboard(commentId, currentStatus, adminPanelUrl) {
     buttons.push({ text: '🚫 Spam', callback_data: `spam:${commentId}` });
   }
   if (currentStatus === 'deleted') {
-    buttons.push({ text: '♻️ Restore', callback_data: `approve:${commentId}` });
+    buttons.push({ text: '♻️ Restore', callback_data: `restore:${commentId}` });
   }
   return {
     inline_keyboard: [
@@ -296,7 +296,7 @@ async function runTests() {
   // deleted → restore only
   kb = buildModerationKeyboard(42, 'deleted', panelUrl);
   assertEqual(kb.inline_keyboard[0].length, 1, 'deleted: 1 action button');
-  assertEqual(kb.inline_keyboard[0][0].callback_data, 'approve:42', 'deleted: button is restore (approve)');
+  assertEqual(kb.inline_keyboard[0][0].callback_data, 'restore:42', 'deleted: button is restore');
   assertIncludes(kb.inline_keyboard[0][0].text, 'Restore', 'deleted: button text says Restore');
 
   // spam → approve, delete
@@ -324,7 +324,7 @@ async function runTests() {
   const validActions = {
     pending:  ['approve', 'delete', 'spam'],
     approved: ['delete', 'spam'],
-    deleted:  ['approve'],
+    deleted:  ['restore'],
     spam:     ['approve', 'delete'],
   };
   // Note: the keyboard builder and the validation must agree on which actions are valid.
@@ -335,12 +335,10 @@ async function runTests() {
     assertEqual(new Set(actions).size, actions.length, `${status}: no duplicate actions`);
   }
 
-  // Verify approve from deleted maps to 'approved' (restore)
-  assertEqual('approve', 'approve', 'approve action used for both approve and restore');
-  // The webhook handler maps action 'approve' → newStatus 'approved'
-  // regardless of whether the current status is pending, deleted, or spam
-  const actionToStatus = { approve: 'approved', delete: 'deleted', spam: 'spam' };
-  assertEqual(actionToStatus['approve'], 'approved', 'approve action always sets status to approved');
+  // Verify action-to-status mapping matches the webhook handler
+  const actionToStatus = { approve: 'approved', restore: 'pending', delete: 'deleted', spam: 'spam' };
+  assertEqual(actionToStatus['approve'], 'approved', 'approve action sets status to approved');
+  assertEqual(actionToStatus['restore'], 'pending', 'restore action sets status to pending');
 
   // ━━ 7. buildNotFoundKeyboard ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   section('buildNotFoundKeyboard');
@@ -369,7 +367,7 @@ async function runTests() {
   // After delete on pending → deleted → keyboard shows restore only
   const afterDelete = buildModerationKeyboard(1, 'deleted', panelUrl);
   assertEqual(afterDelete.inline_keyboard[0].length, 1, 'After delete: 1 button (restore)');
-  assertEqual(afterDelete.inline_keyboard[0][0].callback_data, 'approve:1', 'After delete: restore uses approve callback');
+  assertEqual(afterDelete.inline_keyboard[0][0].callback_data, 'restore:1', 'After delete: restore callback');
 
   // After spam on pending → spam → keyboard shows approve+delete
   const afterSpam = buildModerationKeyboard(1, 'spam', panelUrl);

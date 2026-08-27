@@ -193,7 +193,7 @@ export class TelegramService {
    * Status transition map:
    *   pending  → approve, delete, spam
    *   approved → delete, spam
-   *   deleted  → approve (restore)
+   *   deleted  → restore
    *   spam     → approve, delete
    */
   static buildModerationKeyboard(
@@ -213,7 +213,7 @@ export class TelegramService {
       buttons.push({ text: '🚫 Spam', callback_data: `spam:${commentId}` });
     }
     if (currentStatus === 'deleted') {
-      buttons.push({ text: '♻️ Restore', callback_data: `approve:${commentId}` });
+      buttons.push({ text: '♻️ Restore', callback_data: `restore:${commentId}` });
     }
 
     return {
