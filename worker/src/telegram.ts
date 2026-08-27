@@ -150,6 +150,7 @@ export class TelegramService {
     // \u200B = zero-width space marker used to separate original text from status
     const message =
       `${header}\n` +
+      `👤 ${authorName}\n\n` +
       `${escapedContent}` +
       `\u200B\n\n<i>Status: ⏳ Pending</i>`;
 
@@ -173,6 +174,7 @@ export class TelegramService {
     const header = TelegramService.buildLinkHeader(postTitle);
     const message =
       `${header}\n` +
+      `👤 ${authorName}\n\n` +
       `${escapedContent}`;
     return this.sendMessage(botToken, chatId, message);
   }

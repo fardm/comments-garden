@@ -419,7 +419,7 @@ async function runTests() {
   assertIncludes(header1, '<a href="https://example.com/my-post">', 'Header has correct href');
   assertIncludes(header1, '>my-post<', 'Header has slug as visible text');
   assertDoesNotInclude(header1, '💬', 'No 💬 New comment header');
-  assertDoesNotInclude(header1, '👤', 'No 👤 author line');
+  // buildLinkHeader is only the link line; author is added in the message builder
 
   const header2 = buildLinkHeader('https://ifard.ir/blog/hello-world/');
   assertIncludes(header2, '<a href="https://ifard.ir/blog/hello-world/">', 'Custom domain href preserved');
@@ -473,13 +473,14 @@ async function runTests() {
   const noMarkerText = 'Old message without marker';
   assertEqual(getOriginalText(noMarkerText), noMarkerText, 'No marker = full text returned');
 
-  // Full initial message format: link + content + status
+  // Full initial message format: link + author + content + status
   const fullInitial = buildLinkHeader('https://example.com/test-post') +
-    '\nGreat article!' +
+    '\n👤 Alice\n\n' +
+    'Great article!' +
     `${ORIGINAL_TEXT_MARKER}\n\n<i>Status: ⏳ Pending</i>`;
   assertIncludes(fullInitial, '<a href="https://example.com/test-post">test-post</a>', 'Full message has clickable slug');
   assertDoesNotInclude(fullInitial, '💬', 'Full message has no 💬 header');
-  assertDoesNotInclude(fullInitial, '👤', 'Full message has no 👤 author');
+  assertIncludes(fullInitial, '👤', 'Full message has author name');
 
   // ━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   console.log(`\n${'═'.repeat(60)}`);
