@@ -1,4 +1,51 @@
+/* Custom */
 :root {
+
+    --cg-light: #f9f1e9;
+    --cg-lightgray: #e3d3c2;
+    --cg-gray: #9e9a97;
+    --cg-darkgray: #383736;
+    --cg-dark: #1f1e1d;
+    --cg-primary: #e37b3e;
+    --cg-primary-shadow: #ee5a2512; 
+    --cg-on-background: #f9e8d6;
+    
+    --cg-message-success-bg: #d4edda;
+    --cg-message-success-text: #155724;
+    --cg-message-error-text: #de3b3b;
+    --cg-message-error-bg: #f8d7da;
+    --cg-message-info-bg: #d1ecf1;
+    --cg-message-info-text: #0c5460;
+    --cg-pending-bg: #fffbf0;
+    --cg-pending-badge-bg: #ffc107;
+    --cg-pending-badge-text: #333333;
+    --cg-btn-brightness: brightness(94%);
+}
+
+ [saved-theme="dark"] {
+    --cg-light: #1e1e1e;
+    --cg-lightgray: #383838;
+    --cg-gray: #646464;
+    --cg-darkgray: #e6e7f7;
+    --cg-dark: #f7f8ff;
+    --cg-primary: #ffa06a;
+    --cg-primary-shadow: #ee5a2512;
+    --cg-on-background: #1f1f22;
+
+    --cg-message-success-bg: rgba(21, 87, 36, 0.4);
+    --cg-message-success-text: #e2e3e5;
+    --cg-message-error-text: #ffc5c5;
+    --cg-message-error-bg: rgba(114, 28, 36, 0.4);
+    --cg-message-info-bg: rgba(12, 84, 96, 0.4);
+    --cg-message-info-text: #e2e3e5;
+    --cg-pending-bg: rgba(255, 193, 7, 0.15);
+    --cg-pending-badge-bg: #ffc107;
+    --cg-pending-badge-text: #000000;
+    --cg-btn-brightness: brightness(110%);
+}
+
+/* Default */
+/* :root {
     --cg-light: #fafbf9;
     --cg-lightgray: #dbe0de;
     --cg-gray: #9fa5a1;
@@ -40,7 +87,7 @@
     --cg-pending-badge-bg: #ffc107;
     --cg-pending-badge-text: #000000;
     --cg-btn-brightness: brightness(110%);
-}
+} */
 
 .comments-system {
     margin: 2rem auto;
