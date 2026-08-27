@@ -55,26 +55,36 @@ export class TelegramService {
   private static MAX_RETRIES = 3;
   private static BASE_DELAY_MS = 500;
 
-  async sendMessage(
+  /**
+   * Build a Gravatar image URL from an email address (async, computes SHA-256 hash).
+   * Returns null when email is empty or hashing fails.
+   */
+  static async getGravatarImageUrl(email: string, size = 80): Promise<string | null> {
+    if (!email) return null;
+    try {
+      const normalized = email.trim().toLowerCase();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(normalized));
+      const hashHex = Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      return `https://www.gravatar.com/avatar/${hashHex}?s=${size}&d=mp`;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Core retry wrapper for Telegram Bot API calls.
+   */
+  private async requestWithRetry(
     botToken: string,
-    chatId: string,
-    text: string,
-    replyMarkup?: object,
+    endpoint: string,
+    body: Record<string, unknown>,
   ): Promise<boolean> {
-    if (!botToken || !chatId) return false;
-
-    const body: Record<string, unknown> = {
-      chat_id: chatId,
-      text,
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-    };
-    if (replyMarkup) body.reply_markup = replyMarkup;
-
     for (let attempt = 0; attempt <= TelegramService.MAX_RETRIES; attempt++) {
       try {
         const response = await fetch(
-          `https://api.telegram.org/bot${botToken}/sendMessage`,
+          `https://api.telegram.org/bot${botToken}/${endpoint}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -110,6 +120,59 @@ export class TelegramService {
     return false;
   }
 
+  async sendMessage(
+    botToken: string,
+    chatId: string,
+    text: string,
+    replyMarkup?: object,
+  ): Promise<boolean> {
+    if (!botToken || !chatId) return false;
+
+    const body: Record<string, unknown> = {
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+    };
+    if (replyMarkup) body.reply_markup = replyMarkup;
+
+    return this.requestWithRetry(botToken, 'sendMessage', body);
+  }
+
+  /**
+   * Send a photo with caption to Telegram.
+   * Falls back to text-only if photo URL is empty.
+   */
+  async sendPhoto(
+    botToken: string,
+    chatId: string,
+    photoUrl: string,
+    caption: string,
+    replyMarkup?: object,
+  ): Promise<boolean> {
+    if (!botToken || !chatId || !photoUrl) {
+      // Fallback: send as text-only message
+      return this.sendMessage(botToken, chatId, caption, replyMarkup);
+    }
+
+    const body: Record<string, unknown> = {
+      chat_id: chatId,
+      photo: photoUrl,
+      caption,
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+    };
+    if (replyMarkup) body.reply_markup = replyMarkup;
+
+    const ok = await this.requestWithRetry(botToken, 'sendPhoto', body);
+    if (!ok) {
+      // Fallback: send as text-only message
+      console.warn('[Telegram] sendPhoto failed, falling back to text message');
+      return this.sendMessage(botToken, chatId, caption, replyMarkup);
+    }
+    return true;
+  }
+
   /**
    * Extract the last path segment (slug) from a URL or path string.
    */
@@ -135,6 +198,8 @@ export class TelegramService {
 
   /**
    * Send a new comment notification with moderation action buttons.
+   * When authorEmail is provided, sends the Gravatar avatar as a photo with the comment as caption.
+   * Falls back to text-only when no email is available or Gravatar fetch fails.
    */
   async sendCommentNotificationWithActions(
     botToken: string,
@@ -144,11 +209,12 @@ export class TelegramService {
     authorName: string,
     content: string,
     adminPanelUrl: string,
+    authorEmail?: string,
   ): Promise<boolean> {
     const escapedContent = content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const header = TelegramService.buildLinkHeader(postTitle);
     // \u200B = zero-width space marker used to separate original text from status
-    const message =
+    const caption =
       `${header}\n` +
       `👤 ${authorName}\n\n` +
       `${escapedContent}` +
@@ -157,7 +223,15 @@ export class TelegramService {
     // New comments are always pending — use buildModerationKeyboard for consistency
     const reply_markup = TelegramService.buildModerationKeyboard(commentId, 'pending', adminPanelUrl);
 
-    return this.sendMessage(botToken, chatId, message, reply_markup);
+    // Try to send with Gravatar photo if email is available
+    if (authorEmail) {
+      const gravatarUrl = await TelegramService.getGravatarImageUrl(authorEmail);
+      if (gravatarUrl) {
+        return this.sendPhoto(botToken, chatId, gravatarUrl, caption, reply_markup);
+      }
+    }
+
+    return this.sendMessage(botToken, chatId, caption, reply_markup);
   }
 
   /**

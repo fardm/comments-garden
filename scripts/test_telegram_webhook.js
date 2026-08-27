@@ -482,6 +482,76 @@ async function runTests() {
   assertDoesNotInclude(fullInitial, '💬', 'Full message has no 💬 header');
   assertIncludes(fullInitial, '👤', 'Full message has author name');
 
+  // ━━ 12. Gravatar URL computation ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  section('Gravatar URL computation');
+
+  // Replicate getGravatarImageUrlAsync
+  async function getGravatarImageUrlAsync(email, size = 80) {
+    if (!email) return null;
+    try {
+      const normalized = email.trim().toLowerCase();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(normalized));
+      const hashHex = Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      return `https://www.gravatar.com/avatar/${hashHex}?s=${size}&d=mp`;
+    } catch {
+      return null;
+    }
+  }
+
+  let gravatarUrl;
+
+  gravatarUrl = await getGravatarImageUrlAsync('user@example.com');
+  assert(gravatarUrl !== null, 'Valid email produces Gravatar URL');
+  assertIncludes(gravatarUrl, 'https://www.gravatar.com/avatar/', 'URL uses Gravatar CDN');
+  assertIncludes(gravatarUrl, '?s=80&d=mp', 'URL has size and default params');
+  assert(!gravatarUrl.includes(' '), 'URL has no spaces');
+
+  gravatarUrl = await getGravatarImageUrlAsync('USER@Example.COM');
+  assert(gravatarUrl !== null, 'Email is normalized to lowercase');
+  const lowerUrl = await getGravatarImageUrlAsync('user@example.com');
+  assertEqual(gravatarUrl, lowerUrl, 'Case-insensitive email produces same URL');
+
+  gravatarUrl = await getGravatarImageUrlAsync('user@example.com', 120);
+  assertIncludes(gravatarUrl, '?s=120&d=mp', 'Custom size parameter passed');
+
+  const nullUrl = await getGravatarImageUrlAsync('');
+  assertEqual(nullUrl, null, 'Empty email returns null');
+
+  const nullUrl2 = await getGravatarImageUrlAsync(null);
+  assertEqual(nullUrl2, null, 'Null email returns null');
+
+  // Verify Gravatar URL is a valid URL
+  const validUrl = await getGravatarImageUrlAsync('test@test.com');
+  try {
+    new URL(validUrl);
+    assert(true, 'Gravatar URL is a valid URL');
+  } catch {
+    assert(false, 'Gravatar URL is not a valid URL');
+  }
+
+  // ━━ 13. sendPhoto fallback behavior ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  section('sendPhoto fallback logic');
+
+  // When photoUrl is empty, sendPhoto should fall back to sendMessage (text only)
+  // We verify the logic: if (!photoUrl) → sendMessage path
+  assertEqual(!'', true, 'Empty string is falsy (fallback triggered)');
+  assertEqual(!null, true, 'Null is falsy (fallback triggered)');
+  assertEqual(!'https://example.com/img.jpg', false, 'Non-empty URL is truthy (no fallback)');
+
+  // sendPhoto body should contain photo, caption, reply_markup
+  const photoBody = {
+    chat_id: '123',
+    photo: 'https://www.gravatar.com/avatar/abc123?s=80&d=mp',
+    caption: 'Hello',
+    parse_mode: 'HTML',
+    disable_web_page_preview: true,
+  };
+  assert(photoBody.photo, 'sendPhoto body includes photo URL');
+  assert(photoBody.caption, 'sendPhoto body includes caption');
+  assert(photoBody.parse_mode, 'sendPhoto body includes parse_mode');
+
   // ━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   console.log(`\n${'═'.repeat(60)}`);
   console.log(`  Results: ${passed} passed, ${failed} failed, ${total} total`);

@@ -177,6 +177,7 @@ app.post('/api/comments', async (c) => {
                 body.author_name || 'Anonymous',
                 body.content || '',
                 adminPanelUrl,
+                body.author_email,
               )
             } else {
               ok = await telegram.sendCommentNotification(
