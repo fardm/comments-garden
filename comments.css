@@ -1,12 +1,12 @@
 :root {
     --cg-light: #fafbf9;
-    --cg-lightgray: #d5dfda;
-    --cg-gray: #93a498;
-    --cg-darkgray: #272c29;
-    --cg-dark: #191d1b;
+    --cg-lightgray: #dbe0de;
+    --cg-gray: #9fa5a1;
+    --cg-darkgray: #2b2e2c;
+    --cg-dark: #1b1d1c;
     --cg-primary: #1ea274;
     --cg-primary-shadow: #1ea27426; 
-    --cg-on-background: #f0f5f2;
+    --cg-on-background: #f1f5f2;
     
     --cg-message-success-bg: #d4edda;
     --cg-message-success-text: #155724;
@@ -21,14 +21,14 @@
 }
 
  [saved-theme="dark"] {
-    --cg-light: #1c1f22;
-    --cg-lightgray: #363a40;
+    --cg-light: #191b1c;
+    --cg-lightgray: #333538;
     --cg-gray: #a8adb3;
-    --cg-darkgray: #dde0e4;
+    --cg-darkgray: #e1e3e7;
     --cg-dark: #f5f7fa;
     --cg-primary: #3ee3a9;
     --cg-primary-shadow: #3ee3a91f;
-    --cg-on-background: #202327;
+    --cg-on-background: #25272a;
 
     --cg-message-success-bg: rgba(21, 87, 36, 0.4);
     --cg-message-success-text: #e2e3e5;
