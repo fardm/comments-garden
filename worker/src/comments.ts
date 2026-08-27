@@ -11,7 +11,7 @@ export async function getGravatarHash(email: string): Promise<string> {
 }
 
 function gravatarUrlFromHash(hashHex: string, size = 80): string {
-  return `https://www.gravatar.com/avatar/${hashHex}?s=${size}&d=mp`
+  return `/api/gravatar/${hashHex}?s=${size}`
 }
 
 export async function getGravatarUrl(email: string, size = 80): Promise<string> {

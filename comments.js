@@ -677,7 +677,7 @@ class CommentSystem {
             : this.escapeHtml(comment.author_name);
 
         const avatarHtml = comment.author_avatar
-            ? `<img src="${this.escapeHtml(comment.author_avatar)}" alt="${this.escapeHtml(comment.author_name)}" class="comment-avatar" loading="lazy">`
+            ? `<img src="${this.escapeHtml(this.resolveAvatarUrl(comment.author_avatar))}" alt="${this.escapeHtml(comment.author_name)}" class="comment-avatar" loading="lazy">`
             : '';
 
         const isPending = comment.status === 'pending';
@@ -854,6 +854,13 @@ class CommentSystem {
             }
             return renderInline(line);
         }).join('<br>');
+    }
+
+    resolveAvatarUrl(url) {
+        if (url && url.startsWith('/')) {
+            return this.apiUrl.replace(/\/(api|api\.php)$/, '') + url;
+        }
+        return url;
     }
 
     escapeHtml(text) {
