@@ -5,6 +5,11 @@ export class SettingsService {
     this.db = db
   }
 
+  async getSetting(key: string): Promise<string | undefined> {
+    const row = await this.db.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first<{ value: string }>()
+    return row?.value
+  }
+
   async getAllSettings() {
     const { results } = await this.db.prepare('SELECT key, value FROM settings').all()
     const config: Record<string, string> = {}

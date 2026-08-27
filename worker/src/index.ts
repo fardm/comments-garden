@@ -164,13 +164,29 @@ app.post('/api/comments', async (c) => {
         console.log('[Telegram] Sending notification via waitUntil...')
         ctx.waitUntil((async () => {
           try {
-            const ok = await telegram.sendCommentNotification(
-              botToken,
-              telegramSettings.telegram_chat_id,
-              body.page_url || body.url || '',
-              body.author_name || 'Anonymous',
-              body.content || '',
-            )
+            const commentId = result.comment_id
+            const requestUrl = new URL(c.req.url)
+            const adminPanelUrl = `${requestUrl.protocol}//${requestUrl.host}/admin/`
+            let ok: boolean
+            if (commentId) {
+              ok = await telegram.sendCommentNotificationWithActions(
+                botToken,
+                telegramSettings.telegram_chat_id,
+                commentId,
+                body.page_url || body.url || '',
+                body.author_name || 'Anonymous',
+                body.content || '',
+                adminPanelUrl,
+              )
+            } else {
+              ok = await telegram.sendCommentNotification(
+                botToken,
+                telegramSettings.telegram_chat_id,
+                body.page_url || body.url || '',
+                body.author_name || 'Anonymous',
+                body.content || '',
+              )
+            }
             console.log(`[Telegram] Notification result: ${ok}`)
           } catch (e) {
             console.error('[Telegram] Background notification failed:', e)
@@ -698,6 +714,69 @@ adminImportExport.get('/export', async (c) => {
 })
 
 app.route('/api/admin/import-export', adminImportExport)
+
+// ── Telegram Webhook ────────────────────────────────────────────────────────
+// Receives callback_query updates when the admin clicks action buttons on
+// notification messages.  This route is PUBLIC (Telegram must reach it) but
+// validated via the X-Telegram-Bot-Api-Secret-Token header.
+
+app.post('/api/telegram/webhook', async (c) => {
+  // Validate webhook secret
+  const secretToken = c.req.header('X-Telegram-Bot-Api-Secret-Token')
+  const storedSecret = await new SettingsService(c.env.DB).getSetting('telegram_webhook_secret')
+  if (!storedSecret || secretToken !== storedSecret) {
+    return c.json({ error: 'Invalid secret' }, 403)
+  }
+
+  const update = await c.req.json().catch(() => null)
+  if (!update?.callback_query) return c.json({ ok: true })
+
+  const cb = update.callback_query
+  const data = cb.data as string | undefined
+  const chatId = String(cb.message?.chat?.id || '')
+  const messageId = cb.message?.message_id as number | undefined
+  if (!data || !chatId || !messageId) return c.json({ ok: true })
+
+  const botToken = c.env.TELEGRAM_BOT_TOKEN as string | undefined
+  if (!botToken) return c.json({ ok: true })
+
+  const telegram = new TelegramService(c.env.DB)
+  const db = c.env.DB
+
+  // Parse callback_data: "action:commentId"
+  const colonIdx = data.indexOf(':')
+  if (colonIdx === -1) return c.json({ ok: true })
+  const action = data.substring(0, colonIdx)
+  const commentId = parseInt(data.substring(colonIdx + 1))
+  if (isNaN(commentId)) return c.json({ ok: true })
+
+  // Perform the moderation action
+  let statusLabel = ''
+  if (action === 'approve') {
+    await db.prepare("UPDATE comments SET status = 'approved' WHERE id = ?").bind(commentId).run()
+    statusLabel = '✅ Comment approved and visible on site.'
+  } else if (action === 'delete') {
+    await db.prepare("UPDATE comments SET status = 'deleted' WHERE id = ?").bind(commentId).run()
+    statusLabel = '🗑 Comment deleted.'
+  } else if (action === 'spam') {
+    await db.prepare("UPDATE comments SET status = 'spam' WHERE id = ?").bind(commentId).run()
+    statusLabel = '🚫 Comment marked as spam.'
+  } else {
+    // Unknown action — just answer the callback
+    await telegram.answerCallbackQuery(botToken, cb.id)
+    return c.json({ ok: true })
+  }
+
+  // Answer the callback to dismiss the loading spinner
+  await telegram.answerCallbackQuery(botToken, cb.id, statusLabel)
+
+  // Edit the original message to show the result and remove the buttons
+  const originalText = cb.message?.text || ''
+  const editedText = `${originalText}\n\n<i>${statusLabel}</i>`
+  await telegram.editMessageText(botToken, chatId, messageId, editedText)
+
+  return c.json({ ok: true })
+})
 
 // ═════════════════════════════════════════════════════════════════════════════
 // STATIC / PROXY ROUTES

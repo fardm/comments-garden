@@ -59,6 +59,7 @@ export class TelegramService {
     botToken: string,
     chatId: string,
     text: string,
+    replyMarkup?: object,
   ): Promise<boolean> {
     if (!botToken || !chatId) return false;
 
@@ -68,6 +69,7 @@ export class TelegramService {
       parse_mode: 'HTML',
       disable_web_page_preview: true,
     };
+    if (replyMarkup) body.reply_markup = replyMarkup;
 
     for (let attempt = 0; attempt <= TelegramService.MAX_RETRIES; attempt++) {
       try {
@@ -109,6 +111,41 @@ export class TelegramService {
   }
 
   /**
+   * Send a new comment notification with moderation action buttons.
+   */
+  async sendCommentNotificationWithActions(
+    botToken: string,
+    chatId: string,
+    commentId: number,
+    postTitle: string,
+    authorName: string,
+    content: string,
+    adminPanelUrl: string,
+  ): Promise<boolean> {
+    const escapedContent = content.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    const message =
+      `💬 <b>New comment</b>\n` +
+      `🔗 ${postTitle}\n` +
+      `👤 ${authorName}\n\n` +
+      `${escapedContent}`;
+
+    const reply_markup = {
+      inline_keyboard: [
+        [
+          { text: '✅ Accept', callback_data: `approve:${commentId}` },
+          { text: '🗑 Delete', callback_data: `delete:${commentId}` },
+          { text: '🚫 Spam', callback_data: `spam:${commentId}` },
+        ],
+        [
+          { text: '🔗 Open Admin Panel', url: adminPanelUrl },
+        ],
+      ],
+    };
+
+    return this.sendMessage(botToken, chatId, message, reply_markup);
+  }
+
+  /**
    * Send a new comment notification.
    */  async sendCommentNotification(
     botToken: string,
@@ -124,6 +161,65 @@ export class TelegramService {
       `\n` +
       `💬 ${content}`;
     return this.sendMessage(botToken, chatId, message);
+  }
+
+  /**
+   * Edit a previously sent message (e.g. to show action result).
+   */
+  async editMessageText(
+    botToken: string,
+    chatId: string,
+    messageId: number,
+    text: string,
+  ): Promise<boolean> {
+    if (!botToken) return false;
+    try {
+      const response = await fetch(
+        `https://api.telegram.org/bot${botToken}/editMessageText`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            message_id: messageId,
+            text,
+            parse_mode: 'HTML',
+          }),
+        },
+      );
+      return response.ok;
+    } catch (e) {
+      console.error('[Telegram] editMessageText failed:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Answer a callback query to dismiss the loading indicator.
+   */
+  async answerCallbackQuery(
+    botToken: string,
+    callbackQueryId: string,
+    text?: string,
+  ): Promise<boolean> {
+    if (!botToken) return false;
+    try {
+      const response = await fetch(
+        `https://api.telegram.org/bot${botToken}/answerCallbackQuery`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            callback_query_id: callbackQueryId,
+            text: text || '',
+          }),
+        },
+      );
+      return response.ok;
+    } catch (e) {
+      console.error('[Telegram] answerCallbackQuery failed:', e);
+      return false;
+    }
   }
 
   /**

@@ -129,7 +129,8 @@ export class CommentService {
       return {
         success: true,
         message: status === 'pending' ? 'Your comment is awaiting moderation.' : 'Comment posted successfully.',
-        status
+        status,
+        comment_id: result.meta?.last_row_id as number | undefined,
       }
     }
     return { error: 'Database error' }
