@@ -219,6 +219,21 @@ export class TelegramService {
     return {
       inline_keyboard: [
         buttons,
+        [
+          { text: '🔄 Refresh', callback_data: `refresh:${commentId}` },
+          { text: '🔗 Open Admin Panel', url: adminPanelUrl },
+        ],
+      ],
+    };
+  }
+
+  /**
+   * Build a keyboard for when the comment no longer exists in the database.
+   * Shows only the Admin Panel link — no action buttons.
+   */
+  static buildNotFoundKeyboard(adminPanelUrl: string): object {
+    return {
+      inline_keyboard: [
         [{ text: '🔗 Open Admin Panel', url: adminPanelUrl }],
       ],
     };

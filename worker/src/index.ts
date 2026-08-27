@@ -750,10 +750,52 @@ app.post('/api/telegram/webhook', async (c) => {
   const commentId = parseInt(data.substring(colonIdx + 1))
   if (isNaN(commentId)) return c.json({ ok: true })
 
-  // Fetch current status to validate the action is applicable
+  const requestUrl = new URL(c.req.url)
+  const adminPanelUrl = `${requestUrl.protocol}//${requestUrl.host}/admin/`
+
+  // Helper: strip previous status lines from message text
+  const stripStatusLine = (text: string): string =>
+    text.replace(/\n\n(<i>[✅🗑🚫♻️⚠️].*<\/i>)$/, '')
+
+  // ── Refresh action ───────────────────────────────────────────────────────
+  if (action === 'refresh') {
+    const comment = await db.prepare('SELECT status FROM comments WHERE id = ?').bind(commentId).first()
+    if (!comment) {
+      // Comment permanently deleted — show warning, remove action buttons
+      const originalText = cb.message?.text || ''
+      const editedText = `${stripStatusLine(originalText)}\n\n<i>⚠️ Comment no longer available.</i>`
+      await telegram.editMessageText(botToken, chatId, messageId, editedText,
+        TelegramService.buildNotFoundKeyboard(adminPanelUrl))
+      await telegram.answerCallbackQuery(botToken, cb.id, 'Comment no longer available.')
+      return c.json({ ok: true })
+    }
+    // Comment exists — refresh keyboard to match current DB status
+    const currentStatus = comment.status as string
+    const statusLabels: Record<string, string> = {
+      pending:  '⏳ Pending',
+      approved: '✅ Approved',
+      deleted:  '🗑 Deleted',
+      spam:     '🚫 Spam',
+    };
+    const statusLabel = statusLabels[currentStatus] || currentStatus
+    const keyboard = TelegramService.buildModerationKeyboard(commentId, currentStatus, adminPanelUrl)
+    const originalText = cb.message?.text || ''
+    const editedText = `${stripStatusLine(originalText)}\n\n<i>${statusLabel}</i>`
+    await telegram.editMessageText(botToken, chatId, messageId, editedText, keyboard)
+    await telegram.answerCallbackQuery(botToken, cb.id, `Status: ${statusLabel}`)
+    return c.json({ ok: true })
+  }
+
+  // ── Moderate action ──────────────────────────────────────────────────────
+  // Fetch current status from DB to validate the action is applicable
   const comment = await db.prepare('SELECT status FROM comments WHERE id = ?').bind(commentId).first()
   if (!comment) {
-    await telegram.answerCallbackQuery(botToken, cb.id, 'Comment not found.')
+    // Comment permanently deleted — update Telegram message
+    const originalText = cb.message?.text || ''
+    const editedText = `${stripStatusLine(originalText)}\n\n<i>⚠️ Comment no longer available.</i>`
+    await telegram.editMessageText(botToken, chatId, messageId, editedText,
+      TelegramService.buildNotFoundKeyboard(adminPanelUrl))
+    await telegram.answerCallbackQuery(botToken, cb.id, 'Comment no longer available.')
     return c.json({ ok: true })
   }
   const currentStatus = comment.status as string
@@ -766,7 +808,19 @@ app.post('/api/telegram/webhook', async (c) => {
     spam:     ['approve', 'delete'],
   };
   if (!validActions[currentStatus]?.includes(action)) {
-    await telegram.answerCallbackQuery(botToken, cb.id, `Cannot ${action} a ${currentStatus} comment.`)
+    // Status changed since this message was sent — refresh keyboard instead
+    const statusLabels: Record<string, string> = {
+      pending:  '⏳ Pending',
+      approved: '✅ Approved',
+      deleted:  '🗑 Deleted',
+      spam:     '🚫 Spam',
+    };
+    const statusLabel = statusLabels[currentStatus] || currentStatus
+    const keyboard = TelegramService.buildModerationKeyboard(commentId, currentStatus, adminPanelUrl)
+    const originalText = cb.message?.text || ''
+    const editedText = `${stripStatusLine(originalText)}\n\n<i>${statusLabel}</i>`
+    await telegram.editMessageText(botToken, chatId, messageId, editedText, keyboard)
+    await telegram.answerCallbackQuery(botToken, cb.id, `Status changed to ${statusLabel}. Buttons updated.`)
     return c.json({ ok: true })
   }
 
@@ -779,27 +833,22 @@ app.post('/api/telegram/webhook', async (c) => {
   invalidateCommentCaches(c, db, pageUrl)
 
   // Build status label
-  const statusLabels: Record<string, string> = {
+  const actionLabels: Record<string, string> = {
     approve: '✅ Approved',
     delete:  '🗑 Deleted',
     spam:    '🚫 Marked as spam',
   };
-  const statusLabel = statusLabels[action] || action;
+  const statusLabel = actionLabels[action] || action;
 
   // Answer the callback to dismiss the loading spinner
   await telegram.answerCallbackQuery(botToken, cb.id, statusLabel)
 
   // Rebuild the keyboard with valid actions for the new status
-  const requestUrl = new URL(c.req.url)
-  const adminPanelUrl = `${requestUrl.protocol}//${requestUrl.host}/admin/`
   const newKeyboard = TelegramService.buildModerationKeyboard(commentId, newStatus, adminPanelUrl)
 
   // Edit the original message: append status, update buttons
   const originalText = cb.message?.text || ''
-  // Strip any previous status lines (lines starting with ✅, 🗑, 🚫 between the last content and buttons)
-  const statusRegex = /\n\n(<i>[✅🗑🚫♻️].*<\/i>)$/
-  const baseText = originalText.replace(statusRegex, '')
-  const editedText = `${baseText}\n\n<i>${statusLabel}</i>`
+  const editedText = `${stripStatusLine(originalText)}\n\n<i>${statusLabel}</i>`
   await telegram.editMessageText(botToken, chatId, messageId, editedText, newKeyboard)
 
   return c.json({ ok: true })

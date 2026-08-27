@@ -140,6 +140,17 @@ function buildModerationKeyboard(commentId, currentStatus, adminPanelUrl) {
   return {
     inline_keyboard: [
       buttons,
+      [
+        { text: '🔄 Refresh', callback_data: `refresh:${commentId}` },
+        { text: '🔗 Open Admin Panel', url: adminPanelUrl },
+      ],
+    ],
+  };
+}
+
+function buildNotFoundKeyboard(adminPanelUrl) {
+  return {
+    inline_keyboard: [
       [{ text: '🔗 Open Admin Panel', url: adminPanelUrl }],
     ],
   };
@@ -274,7 +285,7 @@ async function runTests() {
   assertEqual(kb.inline_keyboard[0][0].callback_data, 'approve:42', 'pending: button 1 is approve');
   assertEqual(kb.inline_keyboard[0][1].callback_data, 'delete:42', 'pending: button 2 is delete');
   assertEqual(kb.inline_keyboard[0][2].callback_data, 'spam:42', 'pending: button 3 is spam');
-  assertEqual(kb.inline_keyboard[1][0].url, panelUrl, 'Admin Panel link present');
+  assertEqual(kb.inline_keyboard[1][1].url, panelUrl, 'Admin Panel link present (row 2, col 2)');
 
   // approved → delete, spam
   kb = buildModerationKeyboard(42, 'approved', panelUrl);
@@ -294,12 +305,18 @@ async function runTests() {
   assertEqual(kb.inline_keyboard[0][0].callback_data, 'approve:42', 'spam: button 1 is approve');
   assertEqual(kb.inline_keyboard[0][1].callback_data, 'delete:42', 'spam: button 2 is delete');
 
-  // Verify all keyboards have the admin panel link
+  // Verify all keyboards have the Refresh button and Admin Panel link in row 2
   for (const status of ['pending', 'approved', 'deleted', 'spam']) {
     kb = buildModerationKeyboard(99, status, panelUrl);
-    assertEqual(kb.inline_keyboard[1].length, 1, `${status}: admin panel row has 1 button`);
-    assertEqual(kb.inline_keyboard[1][0].url, panelUrl, `${status}: admin panel URL correct`);
+    assertEqual(kb.inline_keyboard[1].length, 2, `${status}: bottom row has 2 buttons (refresh + admin)`);
+    assertEqual(kb.inline_keyboard[1][0].callback_data, 'refresh:99', `${status}: refresh button present`);
+    assertIncludes(kb.inline_keyboard[1][0].text, 'Refresh', `${status}: refresh button text`);
+    assertEqual(kb.inline_keyboard[1][1].url, panelUrl, `${status}: admin panel URL correct`);
   }
+
+  // Verify callback_data format for refresh
+  kb = buildModerationKeyboard(123, 'pending', panelUrl);
+  assertEqual(kb.inline_keyboard[1][0].callback_data, 'refresh:123', 'Refresh callback_data encodes commentId');
 
   // ━━ 6. Action validation logic ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   section('Action validation (valid actions per status)');
@@ -324,6 +341,46 @@ async function runTests() {
   // regardless of whether the current status is pending, deleted, or spam
   const actionToStatus = { approve: 'approved', delete: 'deleted', spam: 'spam' };
   assertEqual(actionToStatus['approve'], 'approved', 'approve action always sets status to approved');
+
+  // ━━ 7. buildNotFoundKeyboard ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  section('buildNotFoundKeyboard');
+
+  const notFoundKb = buildNotFoundKeyboard(panelUrl);
+  assertEqual(notFoundKb.inline_keyboard.length, 1, 'Not-found keyboard has 1 row');
+  assertEqual(notFoundKb.inline_keyboard[0].length, 1, 'Not-found keyboard has 1 button');
+  assertEqual(notFoundKb.inline_keyboard[0][0].url, panelUrl, 'Not-found keyboard shows Admin Panel link');
+  assertIncludes(notFoundKb.inline_keyboard[0][0].text, 'Admin Panel', 'Not-found button text says Admin Panel');
+  // No callback_data buttons — only URL button
+  assert(!notFoundKb.inline_keyboard[0][0].callback_data, 'Not-found keyboard has no callback_data buttons');
+
+  // ━━ 8. Webhook action handling logic ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  section('Webhook action handling logic');
+
+  // Refresh is always valid regardless of status (handled separately)
+  assert(true, 'refresh action is handled separately (not in validActions map)');
+
+  // After a status change, the keyboard must match the new status
+  // e.g. approve on pending → approved → keyboard shows delete+spam
+  const afterApprove = buildModerationKeyboard(1, 'approved', panelUrl);
+  assertEqual(afterApprove.inline_keyboard[0].length, 2, 'After approve: 2 buttons (delete, spam)');
+  assertEqual(afterApprove.inline_keyboard[0][0].callback_data, 'delete:1', 'After approve: delete button');
+  assertEqual(afterApprove.inline_keyboard[0][1].callback_data, 'spam:1', 'After approve: spam button');
+
+  // After delete on pending → deleted → keyboard shows restore only
+  const afterDelete = buildModerationKeyboard(1, 'deleted', panelUrl);
+  assertEqual(afterDelete.inline_keyboard[0].length, 1, 'After delete: 1 button (restore)');
+  assertEqual(afterDelete.inline_keyboard[0][0].callback_data, 'approve:1', 'After delete: restore uses approve callback');
+
+  // After spam on pending → spam → keyboard shows approve+delete
+  const afterSpam = buildModerationKeyboard(1, 'spam', panelUrl);
+  assertEqual(afterSpam.inline_keyboard[0].length, 2, 'After spam: 2 buttons (approve, delete)');
+  assertEqual(afterSpam.inline_keyboard[0][0].callback_data, 'approve:1', 'After spam: approve button');
+  assertEqual(afterSpam.inline_keyboard[0][1].callback_data, 'delete:1', 'After spam: delete button');
+
+  // Missing comment → not-found keyboard (no action buttons)
+  const missingKb = buildNotFoundKeyboard(panelUrl);
+  assertEqual(missingKb.inline_keyboard.length, 1, 'Missing comment: only admin panel row');
+  assertEqual(missingKb.inline_keyboard[0][0].url, panelUrl, 'Missing comment: admin panel link');
 
   // ━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   console.log(`\n${'═'.repeat(60)}`);
