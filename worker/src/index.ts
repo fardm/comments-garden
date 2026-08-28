@@ -131,9 +131,12 @@ app.get('/api/comments/recent', async (c) => {
   const cached = await getCachedResponse(c, c.req.raw)
   if (cached) return cached
 
-  const comments = new CommentService(c.env.DB)
+  const db = c.env.DB
+  const comments = new CommentService(db)
+  const settings = new SettingsService(db)
   const limit = parseInt(c.req.query('limit') || '8')
-  const result = await comments.getRecentComments(limit)
+  const showAdmin = (await settings.getSetting('show_admin_comments_in_recent')) === 'true'
+  const result = await comments.getRecentComments(limit, showAdmin)
   const response = c.json(result)
 
   // Cache the successful response

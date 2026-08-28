@@ -49,6 +49,10 @@ VIEWS['settings-general'] = {
                         <label class="toggle-switch"><input type="checkbox" id="setting-require-moderation"><span class="toggle-slider"></span></label>
                     </div>
                     <div class="setting-row">
+                        <div class="setting-label"><strong>Show admin comments in recent</strong><span>Include admin replies in the Recent Comments widget</span></div>
+                        <label class="toggle-switch"><input type="checkbox" id="setting-show-admin-recent"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="setting-row">
                         <div class="setting-label"><strong>Comment Sort Order</strong><span>Default order for top-level comments on the site</span></div>
                         <select id="setting-comment-sort-order" class="themed-control">
                             <option value="asc">Oldest first (ASC)</option>
@@ -118,7 +122,7 @@ VIEWS['settings-general'] = {
     init({ hoistToWindow }) {
         // All setting element IDs that trigger auto-save on change
         const autoSaveIds = [
-            'setting-require-moderation', 'setting-comment-sort-order', 'setting-language',
+            'setting-require-moderation', 'setting-show-admin-recent', 'setting-comment-sort-order', 'setting-language',
             'setting-timezone', 'setting-calendar',
             'setting-admin-name', 'setting-admin-email', 'setting-admin-url'
         ];
@@ -152,6 +156,7 @@ VIEWS['settings-general'] = {
                 if (sOk && sd?.settings) {
                     const s = sd.settings;
                     document.getElementById('setting-require-moderation').checked = (s.require_moderation === 'true');
+                    document.getElementById('setting-show-admin-recent').checked = (s.show_admin_comments_in_recent === 'true');
                     document.getElementById('setting-comment-sort-order').value = s.comment_sort_order === 'desc' ? 'desc' : 'asc';
                     document.getElementById('setting-admin-name').value = s.admin_name || '';
                     document.getElementById('setting-admin-email').value = s.admin_email || '';
@@ -178,6 +183,7 @@ VIEWS['settings-general'] = {
             try {
                 // Read all values
                 const requireModeration = document.getElementById('setting-require-moderation').checked ? 'true' : 'false';
+                const showAdminRecent = document.getElementById('setting-show-admin-recent').checked ? 'true' : 'false';
                 const commentSortOrder = document.getElementById('setting-comment-sort-order').value;
                 const adminName = document.getElementById('setting-admin-name').value.trim();
                 const adminEmail = document.getElementById('setting-admin-email').value.trim();
@@ -195,6 +201,7 @@ VIEWS['settings-general'] = {
                     method: 'POST',
                     body: {
                         require_moderation: requireModeration,
+                        show_admin_comments_in_recent: showAdminRecent,
                         comment_sort_order: commentSortOrder,
                         admin_name: adminName,
                         admin_email: adminEmail,

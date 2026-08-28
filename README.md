@@ -16,7 +16,7 @@ Comments Garden is a lightweight commenting system for static websites, powered 
 - 🛠️ Admin panel for viewing and managing comments
 - 📦 JSON data import and export
 - 🛡️ Spam protection and moderation system
-- 📱 Telegram notifications for new comments
+- 📱 Telegram notifications & comment management
 
 ## Setup & Deployment Guide
 

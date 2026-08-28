@@ -190,8 +190,13 @@ export class CommentService {
     return { success: true }
   }
 
-  async getRecentComments(limit: number) {
-    const { results } = await this.db.prepare(`\r\n      SELECT * FROM comments\r\n      WHERE status = 'approved'\r\n      ORDER BY created_at DESC\r\n      LIMIT ?\r\n    `).bind(limit).all()
+  async getRecentComments(limit: number, showAdminComments: boolean = false) {
+    let query = `SELECT * FROM comments WHERE status = 'approved'`
+    if (!showAdminComments) {
+      query += ` AND author_role = 'user'`
+    }
+    query += ` ORDER BY created_at DESC LIMIT ?`
+    const { results } = await this.db.prepare(query).bind(limit).all()
 
     for (const row of results) {
       const content = row.content as string;
