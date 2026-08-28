@@ -120,6 +120,28 @@ From the Admin Panel, you can configure:
 - **Calendar System** — Calendar system used for dates.
 
 The **Admin Profile** is used to automatically fill in the author information when submitting replies from the Admin Panel.
+
+## How It Works
+
+### Gravatar Avatars
+
+User avatars in Comments Garden are generated automatically via [Gravatar](https://en.gravatar.com/) based on the email address provided during registration. To set up your avatar:
+
+1. Visit [gravatar.com](https://en.gravatar.com/) and create an account.
+2. Upload and configure your profile image.
+3. Your avatar will be automatically fetched and displayed in the comment system using the email you registered with.
+
+This applies to both **regular users** and **admins** — any participant who provides an email will see their Gravatar avatar in the comments.
+
+### Admin Replies & Reactions
+
+Admin interactions (replies and reactions) are visually distinct from regular user interactions to make them easily identifiable:
+
+- **Admin reactions** are always displayed independently, accompanied by the admin's avatar.
+- **Admin replies** have slightly different styling to clearly indicate they were posted by the admin.
+
+> **⚠️ Important:** To take advantage of these admin-specific features, admins should always use the **Admin Panel** for posting replies and reactions. If you perform these actions through the frontend comment interface, the admin-specific styling and avatar display will **not** be applied.
+
 ## Frontend Color Change Guide
 
 To customize the frontend colors, edit the color variables defined at the top of the `comments.css` file.
